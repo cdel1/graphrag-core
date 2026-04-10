@@ -1,0 +1,188 @@
+# ============================================================================
+# Cross-Platform Dotfiles .gitignore
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# macOS
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# -----------------------------------------------------------------------------
+# Linux
+# -----------------------------------------------------------------------------
+*~
+.directory
+.Trash-*
+.nfs*
+
+# -----------------------------------------------------------------------------
+# Windows
+# -----------------------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# -----------------------------------------------------------------------------
+# Shell & Terminal
+# -----------------------------------------------------------------------------
+# History files
+.bash_history
+.zsh_history
+.python_history
+.node_repl_history
+.lesshst
+
+# Zsh compiled files
+*.zwc
+*.zwc.old
+.zcompdump*
+
+# Shell local overrides
+*.local
+
+# -----------------------------------------------------------------------------
+# Editors
+# -----------------------------------------------------------------------------
+# Vim
+*.swp
+*.swo
+*.swn
+.*.sw?
+*~
+.netrwhist
+
+# VS Code (if you want to ignore workspace settings)
+# .vscode/
+
+# Emacs
+*~
+\#*\#
+.\#*
+.emacs.desktop
+.emacs.desktop.lock
+
+# -----------------------------------------------------------------------------
+# Security & Credentials
+# -----------------------------------------------------------------------------
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# SSH keys (safety net - should never be in dotfiles repo anyway)
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.pem
+*.key
+
+# AWS credentials
+.aws/credentials
+
+# Other credentials
+.netrc
+.gnupg/
+
+# -----------------------------------------------------------------------------
+# Backups & Temporary Files
+# -----------------------------------------------------------------------------
+*.backup
+*.bak
+*.tmp
+*.temp
+.backup/
+backup/
+*_backup/
+dotfiles_backup/
+
+# -----------------------------------------------------------------------------
+# Package Managers & Dependencies
+# -----------------------------------------------------------------------------
+node_modules/
+.npm/
+.yarn/
+
+# -----------------------------------------------------------------------------
+# Cache & Generated Files
+# -----------------------------------------------------------------------------
+.cache/
+*.log
+*.pid
+
+# Oh My Zsh custom (if you add custom plugins locally)
+# .oh-my-zsh/custom/
+
+# -----------------------------------------------------------------------------
+# Claude Code - Personal Data & State Files
+# -----------------------------------------------------------------------------
+# Exclude personal data, session history, and cache
+.claude.json
+.claude.json.backup
+.claude/history.jsonl
+.claude/file-history/
+.claude/todos/
+.claude/session-env/
+.claude/shell-snapshots/
+.claude/debug/
+.claude/statsig/
+.claude/.anthropic/
+.claude/settings.local.json
+
+# Keep these Claude Code files (should be committed):
+# .claude/commands/ - Custom slash commands
+# .claude/settings.json - Project settings
+# .mcp.json - MCP server configuration
+# CLAUDE.md - Project context
+
+# -----------------------------------------------------------------------------
+# Project Specific
+# -----------------------------------------------------------------------------
+# Test files you might create while testing configs
+test/
+scratch/
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
