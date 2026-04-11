@@ -26,9 +26,6 @@ class TokenChunker:
 
         while start < len(words):
             end = min(start + config.max_tokens, len(words))
-            # Skip chunks whose content was already covered by the previous chunk
-            if chunks and start < chunks[-1].position * step + config.max_tokens and end <= start:
-                break
             chunk_words = words[start:end]
             text = " ".join(w for w, _ in chunk_words)
             page = chunk_words[0][1] if chunk_words else None
