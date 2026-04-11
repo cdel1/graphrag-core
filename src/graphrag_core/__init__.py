@@ -11,6 +11,13 @@ from graphrag_core.interfaces import (
     IngestionPipeline,
     SearchEngine,
 )
+from graphrag_core.ingestion import (
+    DocxParser,
+    MarkdownParser,
+    PdfParser,
+    TextParser,
+    TokenChunker,
+)
 from graphrag_core.models import (
     DocumentChunk,
     ExtractionResult,
@@ -24,11 +31,16 @@ from graphrag_core.models import (
 __all__ = [
     "Chunker",
     "DocumentParser",
+    "DocxParser",
     "EmbeddingModel",
     "ExtractionEngine",
     "GraphStore",
     "IngestionPipeline",
+    "MarkdownParser",
+    "PdfParser",
     "SearchEngine",
+    "TextParser",
+    "TokenChunker",
     "DocumentChunk",
     "ExtractionResult",
     "GraphNode",
