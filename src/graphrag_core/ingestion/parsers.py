@@ -54,8 +54,6 @@ class MarkdownParser:
             before = text[last_end:match.start()].strip()
             if before or last_heading is not None:
                 sections.append(TextSection(heading=last_heading, text=before))
-            elif before:
-                sections.append(TextSection(heading=None, text=before))
 
             last_heading = match.group(2).strip()
             last_end = match.end()
