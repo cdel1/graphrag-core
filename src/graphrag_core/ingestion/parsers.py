@@ -69,11 +69,60 @@ class PdfParser:
     """Parses PDF bytes into one TextSection per page."""
 
     async def parse(self, source: bytes, content_type: str) -> ParsedDocument:
-        raise NotImplementedError("PdfParser will be implemented in Task 4")
+        if content_type != "application/pdf":
+            raise ValueError(f"PdfParser expects content_type 'application/pdf', got '{content_type}'")
+
+        import io
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(source))
+        sections = []
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if text.strip():
+                sections.append(TextSection(heading=None, text=text.strip(), page=i + 1))
+        return ParsedDocument(sections=sections, metadata=_metadata(source, content_type))
 
 
 class DocxParser:
     """Parses DOCX bytes into sections grouped by headings."""
 
+    _CONTENT_TYPE = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
     async def parse(self, source: bytes, content_type: str) -> ParsedDocument:
-        raise NotImplementedError("DocxParser will be implemented in Task 4")
+        if content_type != self._CONTENT_TYPE:
+            raise ValueError(
+                f"DocxParser expects content_type '{self._CONTENT_TYPE}', got '{content_type}'"
+            )
+
+        import io
+        from docx import Document
+
+        doc = Document(io.BytesIO(source))
+        sections: list[TextSection] = []
+        current_heading: str | None = None
+        current_lines: list[str] = []
+
+        for para in doc.paragraphs:
+            if para.style and para.style.name and para.style.name.startswith("Heading"):
+                if current_lines or current_heading is not None:
+                    sections.append(TextSection(
+                        heading=current_heading,
+                        text="\n".join(current_lines).strip(),
+                    ))
+                current_heading = para.text.strip()
+                current_lines = []
+            else:
+                text = para.text.strip()
+                if text:
+                    current_lines.append(text)
+
+        if current_lines or current_heading is not None:
+            sections.append(TextSection(
+                heading=current_heading,
+                text="\n".join(current_lines).strip(),
+            ))
+
+        return ParsedDocument(sections=sections, metadata=_metadata(source, content_type))
