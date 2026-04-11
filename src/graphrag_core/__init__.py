@@ -8,6 +8,7 @@ from graphrag_core.interfaces import (
     EmbeddingModel,
     ExtractionEngine,
     GraphStore,
+    IngestionPipeline,
     SearchEngine,
 )
 from graphrag_core.models import (
@@ -26,6 +27,7 @@ __all__ = [
     "EmbeddingModel",
     "ExtractionEngine",
     "GraphStore",
+    "IngestionPipeline",
     "SearchEngine",
     "DocumentChunk",
     "ExtractionResult",

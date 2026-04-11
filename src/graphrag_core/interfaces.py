@@ -44,6 +44,18 @@ class EmbeddingModel(Protocol):
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
+@runtime_checkable
+class IngestionPipeline(Protocol):
+    """Orchestrates parsing, chunking, and optional embedding."""
+
+    async def ingest(
+        self,
+        source: bytes,
+        content_type: str,
+        config: ChunkConfig | None = None,
+    ) -> list[DocumentChunk]: ...
+
+
 # ---------------------------------------------------------------------------
 # BB2: Schema-Guided Entity Extraction
 # ---------------------------------------------------------------------------
