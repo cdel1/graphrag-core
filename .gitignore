@@ -186,3 +186,6 @@ build/
 htmlcov/
 .coverage
 .coverage.*
+
+# graphify
+graphify-out/
