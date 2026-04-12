@@ -3,13 +3,17 @@
 __version__ = "0.1.0"
 
 from graphrag_core.interfaces import (
+    ApprovalGateway,
     Chunker,
+    DetectionLayer,
     DocumentParser,
     EmbeddingModel,
+    EntityRegistry,
     ExtractionEngine,
     GraphStore,
     IngestionPipeline,
     LLMClient,
+    LLMCurationLayer,
     SearchEngine,
 )
 from graphrag_core.ingestion import (
@@ -22,25 +26,35 @@ from graphrag_core.ingestion import (
 from graphrag_core.extraction import LLMExtractionEngine
 from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.search import InMemorySearchEngine
+from graphrag_core.registry import InMemoryEntityRegistry
+from graphrag_core.curation import DeterministicDetectionLayer, CurationPipeline
 from graphrag_core.models import (
+    CurationIssue,
+    CurationReport,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
     ImportRun,
+    KnownEntity,
     NodeTypeDefinition,
     OntologySchema,
+    RegistryMatch,
     SearchResult,
 )
 
 __all__ = [
     # Protocols
+    "ApprovalGateway",
     "Chunker",
+    "DetectionLayer",
     "DocumentParser",
     "EmbeddingModel",
+    "EntityRegistry",
     "ExtractionEngine",
     "GraphStore",
     "IngestionPipeline",
     "LLMClient",
+    "LLMCurationLayer",
     "SearchEngine",
     # BB1 implementations
     "DocxParser",
@@ -54,13 +68,22 @@ __all__ = [
     "InMemoryGraphStore",
     # BB4 implementations
     "InMemorySearchEngine",
+    # BB5 implementations
+    "CurationPipeline",
+    "DeterministicDetectionLayer",
+    # BB6 implementations
+    "InMemoryEntityRegistry",
     # Models
+    "CurationIssue",
+    "CurationReport",
     "DocumentChunk",
     "ExtractionResult",
     "GraphNode",
     "ImportRun",
+    "KnownEntity",
     "NodeTypeDefinition",
     "OntologySchema",
+    "RegistryMatch",
     "SearchResult",
 ]
 
