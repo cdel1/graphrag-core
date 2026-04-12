@@ -21,6 +21,7 @@ from graphrag_core.ingestion import (
 )
 from graphrag_core.extraction import LLMExtractionEngine
 from graphrag_core.graph import InMemoryGraphStore
+from graphrag_core.search import InMemorySearchEngine
 from graphrag_core.models import (
     DocumentChunk,
     ExtractionResult,
@@ -51,6 +52,8 @@ __all__ = [
     "LLMExtractionEngine",
     # BB3 implementations
     "InMemoryGraphStore",
+    # BB4 implementations
+    "InMemorySearchEngine",
     # Models
     "DocumentChunk",
     "ExtractionResult",
@@ -65,6 +68,12 @@ __all__ = [
 try:
     from graphrag_core.graph import Neo4jGraphStore
     __all__.append("Neo4jGraphStore")
+except ImportError:
+    pass
+
+try:
+    from graphrag_core.search import Neo4jHybridSearch
+    __all__.append("Neo4jHybridSearch")
 except ImportError:
     pass
 
