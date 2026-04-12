@@ -260,3 +260,12 @@ class TestExtractionEngineMultiChunk:
         assert len(chunk_1_provenance) == 2
         assert {p.node_id for p in chunk_0_provenance} == {"person-alice", "company-acme"}
         assert {p.node_id for p in chunk_1_provenance} == {"person-bob", "company-globex"}
+
+
+class TestExtractionEngineProtocol:
+    def test_satisfies_extraction_engine_protocol(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.interfaces import ExtractionEngine
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        assert isinstance(engine, ExtractionEngine)
