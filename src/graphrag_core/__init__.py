@@ -9,6 +9,7 @@ from graphrag_core.interfaces import (
     ExtractionEngine,
     GraphStore,
     IngestionPipeline,
+    LLMClient,
     SearchEngine,
 )
 from graphrag_core.ingestion import (
@@ -18,6 +19,8 @@ from graphrag_core.ingestion import (
     TextParser,
     TokenChunker,
 )
+from graphrag_core.extraction import LLMExtractionEngine
+from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.models import (
     DocumentChunk,
     ExtractionResult,
@@ -29,18 +32,26 @@ from graphrag_core.models import (
 )
 
 __all__ = [
+    # Protocols
     "Chunker",
     "DocumentParser",
-    "DocxParser",
     "EmbeddingModel",
     "ExtractionEngine",
     "GraphStore",
     "IngestionPipeline",
+    "LLMClient",
+    "SearchEngine",
+    # BB1 implementations
+    "DocxParser",
     "MarkdownParser",
     "PdfParser",
-    "SearchEngine",
     "TextParser",
     "TokenChunker",
+    # BB2 implementations
+    "LLMExtractionEngine",
+    # BB3 implementations
+    "InMemoryGraphStore",
+    # Models
     "DocumentChunk",
     "ExtractionResult",
     "GraphNode",
@@ -49,3 +60,16 @@ __all__ = [
     "OntologySchema",
     "SearchResult",
 ]
+
+# Optional: Neo4j and Anthropic (require extras)
+try:
+    from graphrag_core.graph import Neo4jGraphStore
+    __all__.append("Neo4jGraphStore")
+except ImportError:
+    pass
+
+try:
+    from graphrag_core.llm import AnthropicLLMClient
+    __all__.append("AnthropicLLMClient")
+except ImportError:
+    pass
