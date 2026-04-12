@@ -196,3 +196,12 @@ class TestInMemoryGraphStoreSchema:
         store = InMemoryGraphStore()
         violations = await store.validate_schema()
         assert violations == []
+
+
+class TestInMemoryGraphStoreProtocol:
+    def test_satisfies_graph_store_protocol(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+        from graphrag_core.interfaces import GraphStore
+
+        store = InMemoryGraphStore()
+        assert isinstance(store, GraphStore)
