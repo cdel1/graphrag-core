@@ -201,3 +201,47 @@ class RegistryMatch(BaseModel):
     name: str
     score: float           # 0.0-1.0
     match_method: str      # "exact", "fuzzy", "embedding"
+
+
+# ---------------------------------------------------------------------------
+# BB7: Core Tool Library
+# ---------------------------------------------------------------------------
+
+class ToolParameter(BaseModel):
+    name: str
+    type: str
+    description: str
+    required: bool = True
+
+
+class ToolResult(BaseModel):
+    success: bool
+    data: Any = None
+    error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# BB8: Multi-Agent Orchestration
+# ---------------------------------------------------------------------------
+
+class AgentResult(BaseModel):
+    agent_name: str
+    success: bool
+    data: dict[str, Any] = {}
+    error: str | None = None
+
+
+class WorkflowResult(BaseModel):
+    workflow_id: str
+    success: bool
+    agent_results: list[AgentResult]
+
+
+class ReportData(BaseModel):
+    title: str
+    sections: list[dict[str, Any]]
+
+
+class RenderConfig(BaseModel):
+    format: str = "markdown"
+    options: dict[str, Any] = {}
