@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
+
+NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
 from graphrag_core.models import (
     GraphNode,
@@ -20,9 +24,9 @@ pytestmark = pytest.mark.integration
 async def store():
     from graphrag_core.graph.neo4j import Neo4jGraphStore
 
-    store = Neo4jGraphStore(database="test")
+    store = Neo4jGraphStore(database=NEO4J_TEST_DB)
     # Wipe the test database before each test
-    async with store._driver.session(database="test") as session:
+    async with store._driver.session(database=NEO4J_TEST_DB) as session:
         await session.run("MATCH (n) DETACH DELETE n")
     yield store
     await store.close()

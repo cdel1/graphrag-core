@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 
 import pytest
+
+NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
 from graphrag_core.models import (
     ChunkConfig,
@@ -71,8 +74,8 @@ def _schema() -> OntologySchema:
 async def neo4j_store():
     from graphrag_core.graph.neo4j import Neo4jGraphStore
 
-    store = Neo4jGraphStore(database="test")
-    async with store._driver.session(database="test") as session:
+    store = Neo4jGraphStore(database=NEO4J_TEST_DB)
+    async with store._driver.session(database=NEO4J_TEST_DB) as session:
         await session.run("MATCH (n) DETACH DELETE n")
     yield store
     await store.close()
