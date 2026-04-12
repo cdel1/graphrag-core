@@ -16,6 +16,9 @@ packages = ["src/graphrag_core"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: requires external services (Neo4j, LLM APIs)",
+]
 
 [dependency-groups]
 dev = [
