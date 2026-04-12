@@ -1,9 +1,22 @@
 [project]
 name = "graphrag-core"
-version = "0.1.0"
-description = "Domain-agnostic Graph RAG framework"
+version = "0.2.0"
+description = "Domain-agnostic Graph RAG framework for building governed, auditable Knowledge Graphs"
 license = "MIT"
 requires-python = ">=3.12"
+readme = "README.md"
+authors = [
+    {name = "Dino Celi"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = ["pydantic>=2.0", "pypdf>=4.0", "python-docx>=1.0"]
 
 [build-system]
@@ -24,6 +37,11 @@ markers = [
 anthropic = ["anthropic>=0.40"]
 neo4j = ["neo4j>=5.0"]
 all = ["graphrag-core[anthropic,neo4j]"]
+
+[project.urls]
+Homepage = "https://github.com/cdel1/graphrag-core"
+Repository = "https://github.com/cdel1/graphrag-core"
+Issues = "https://github.com/cdel1/graphrag-core/issues"
 
 [dependency-groups]
 dev = [
