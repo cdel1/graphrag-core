@@ -71,7 +71,7 @@ class Neo4jHybridSearch:
         self, query: str, node_types: list[str] | None = None, top_k: int = 10
     ) -> list[SearchResult]:
         cypher = (
-            "CALL db.index.fulltext.queryNodes($index_name, $query) "
+            "CALL db.index.fulltext.queryNodes($index_name, $search_query) "
             "YIELD node, score "
             "RETURN node, score, labels(node) AS labels "
             "ORDER BY score DESC "
@@ -81,7 +81,7 @@ class Neo4jHybridSearch:
             result = await session.run(
                 cypher,
                 index_name=self._fulltext_index_name,
-                query=query,
+                search_query=query,
                 top_k=top_k,
             )
             results = []
