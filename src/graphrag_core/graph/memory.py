@@ -88,6 +88,12 @@ class InMemoryGraphStore:
     async def apply_schema(self, schema: OntologySchema) -> None:
         self._schema = schema
 
+    async def list_nodes(self) -> list[GraphNode]:
+        return list(self._nodes.values())
+
+    async def count_relationships(self) -> int:
+        return len(self._relationships)
+
     async def validate_schema(self) -> list[SchemaViolation]:
         if self._schema is None:
             return []

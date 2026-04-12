@@ -169,6 +169,28 @@ class Neo4jGraphStore:
                     )
                     await session.run(index_query)
 
+    async def list_nodes(self) -> list[GraphNode]:
+        query = "MATCH (n) WHERE NOT n:Chunk RETURN n, labels(n) AS labels"
+        async with self._driver.session(database=self._database) as session:
+            result = await session.run(query)
+            nodes = []
+            async for record in result:
+                props = dict(record["n"])
+                labels = [l for l in record["labels"] if l != "Chunk"]
+                label = labels[0] if labels else "Unknown"
+                node_id = props.pop("id", "")
+                props.pop("_import_run_id", None)
+                props.pop("_updated_at", None)
+                nodes.append(GraphNode(id=node_id, label=label, properties=props))
+            return nodes
+
+    async def count_relationships(self) -> int:
+        query = "MATCH ()-[r]->() WHERE type(r) <> 'SOURCED' RETURN count(r) AS cnt"
+        async with self._driver.session(database=self._database) as session:
+            result = await session.run(query)
+            record = await result.single()
+            return record["cnt"] if record else 0
+
     async def validate_schema(self) -> list[SchemaViolation]:
         violations: list[SchemaViolation] = []
         return violations
