@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 
 from neo4j import AsyncGraphDatabase
 
-_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_MAX_DEPTH = 10
-
-
-def _validate_identifier(value: str, kind: str) -> str:
-    """Reject identifiers that could cause Cypher injection."""
-    if not _SAFE_IDENTIFIER.match(value):
-        raise ValueError(f"Invalid {kind}: {value!r}")
-    return value
-
+from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.models import (
     AuditTrail,
     GraphNode,
@@ -43,7 +33,7 @@ class Neo4jGraphStore:
         await self._driver.close()
 
     async def merge_node(self, node: GraphNode, import_run_id: str) -> str:
-        _validate_identifier(node.label, "node label")
+        validate_identifier(node.label, "node label")
         query = (
             f"MERGE (n:{node.label} {{id: $id}}) "
             "SET n += $props, n._import_run_id = $run_id, n._updated_at = $now "
@@ -61,7 +51,7 @@ class Neo4jGraphStore:
             return record["id"]
 
     async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -> str:
-        _validate_identifier(rel.type, "relationship type")
+        validate_identifier(rel.type, "relationship type")
         query = (
             "MATCH (a {id: $source_id}), (b {id: $target_id}) "
             f"MERGE (a)-[r:{rel.type}]->(b) "
@@ -135,9 +125,9 @@ class Neo4jGraphStore:
     async def get_related(
         self, node_id: str, rel_type: str | None = None, depth: int = 1
     ) -> list[GraphNode]:
-        depth = min(max(depth, 1), _MAX_DEPTH)
+        depth = min(max(depth, 1), MAX_DEPTH)
         if rel_type:
-            _validate_identifier(rel_type, "relationship type")
+            validate_identifier(rel_type, "relationship type")
             query = (
                 f"MATCH (n {{id: $id}})-[:{rel_type}*1..{depth}]-(m) "
                 "WHERE m.id <> $id "
@@ -165,14 +155,14 @@ class Neo4jGraphStore:
     async def apply_schema(self, schema: OntologySchema) -> None:
         async with self._driver.session(database=self._database) as session:
             for nt in schema.node_types:
-                _validate_identifier(nt.label, "node label")
+                validate_identifier(nt.label, "node label")
                 constraint_query = (
                     f"CREATE CONSTRAINT IF NOT EXISTS "
                     f"FOR (n:{nt.label}) REQUIRE n.id IS UNIQUE"
                 )
                 await session.run(constraint_query)
                 for prop in nt.required_properties:
-                    _validate_identifier(prop, "property name")
+                    validate_identifier(prop, "property name")
                     index_query = (
                         f"CREATE INDEX IF NOT EXISTS "
                         f"FOR (n:{nt.label}) ON (n.{prop})"
