@@ -214,3 +214,49 @@ class TestExtractionEngineValidation:
         assert result.nodes == []
         assert result.relationships == []
         assert result.provenance == []
+
+
+class TestExtractionEngineMultiChunk:
+    @pytest.mark.asyncio
+    async def test_extracts_across_multiple_chunks(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        chunks = [
+            DocumentChunk(id="chunk-0", text="Alice works at Acme.", position=0),
+            DocumentChunk(id="chunk-1", text="Bob works at Globex.", position=1),
+        ]
+
+        response_0 = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+                {"id": "company-acme", "label": "Company", "properties": {"name": "Acme"}},
+            ],
+            "relationships": [
+                {"source_id": "person-alice", "target_id": "company-acme", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+        response_1 = json.dumps({
+            "nodes": [
+                {"id": "person-bob", "label": "Person", "properties": {"name": "Bob"}},
+                {"id": "company-globex", "label": "Company", "properties": {"name": "Globex"}},
+            ],
+            "relationships": [
+                {"source_id": "person-bob", "target_id": "company-globex", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(
+            llm_client=FakeLLMClient(responses=[response_0, response_1])
+        )
+        result = await engine.extract(chunks=chunks, schema=_schema(), import_run=_import_run())
+
+        assert len(result.nodes) == 4
+        assert len(result.relationships) == 2
+        assert len(result.provenance) == 4
+
+        chunk_0_provenance = [p for p in result.provenance if p.chunk_id == "chunk-0"]
+        chunk_1_provenance = [p for p in result.provenance if p.chunk_id == "chunk-1"]
+        assert len(chunk_0_provenance) == 2
+        assert len(chunk_1_provenance) == 2
+        assert {p.node_id for p in chunk_0_provenance} == {"person-alice", "company-acme"}
+        assert {p.node_id for p in chunk_1_provenance} == {"person-bob", "company-globex"}
