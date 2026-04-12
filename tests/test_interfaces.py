@@ -1,24 +1,33 @@
 """Test that concrete classes can satisfy each Protocol."""
 
 from graphrag_core.interfaces import (
+    ApprovalGateway,
     Chunker,
+    DetectionLayer,
     DocumentParser,
     EmbeddingModel,
+    EntityRegistry,
     ExtractionEngine,
     GraphStore,
     LLMClient,
+    LLMCurationLayer,
     SearchEngine,
 )
 from graphrag_core.models import (
+    ApplyResult,
+    ApprovalBatch,
     AuditTrail,
     ChunkConfig,
+    CurationIssue,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
     GraphRelationship,
     ImportRun,
+    KnownEntity,
     OntologySchema,
     ParsedDocument,
+    RegistryMatch,
     SchemaViolation,
     SearchResult,
 )
@@ -107,6 +116,12 @@ class TestGraphStoreProtocol:
             async def validate_schema(self) -> list[SchemaViolation]:
                 raise NotImplementedError
 
+            async def list_nodes(self) -> list[GraphNode]:
+                raise NotImplementedError
+
+            async def count_relationships(self) -> int:
+                raise NotImplementedError
+
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
 
@@ -161,3 +176,59 @@ class TestSearchEngineProtocol:
 
         search: SearchEngine = MySearch()
         assert isinstance(search, SearchEngine)
+
+
+class TestDetectionLayerProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyDetection:
+            async def detect(
+                self, graph_store: GraphStore, schema: OntologySchema
+            ) -> list[CurationIssue]:
+                raise NotImplementedError
+
+        layer: DetectionLayer = MyDetection()
+        assert isinstance(layer, DetectionLayer)
+
+
+class TestLLMCurationLayerProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyCuration:
+            async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]:
+                raise NotImplementedError
+
+        layer: LLMCurationLayer = MyCuration()
+        assert isinstance(layer, LLMCurationLayer)
+
+
+class TestApprovalGatewayProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyGateway:
+            async def submit_for_approval(self, issues: list[CurationIssue]) -> str:
+                raise NotImplementedError
+
+            async def get_approval_status(self, batch_id: str) -> ApprovalBatch:
+                raise NotImplementedError
+
+            async def apply_approved(self, batch_id: str) -> ApplyResult:
+                raise NotImplementedError
+
+        gateway: ApprovalGateway = MyGateway()
+        assert isinstance(gateway, ApprovalGateway)
+
+
+class TestEntityRegistryProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyRegistry:
+            async def register(self, entity: KnownEntity) -> str:
+                raise NotImplementedError
+
+            async def lookup(
+                self, name: str, entity_type: str, match_strategy: str = "fuzzy"
+            ) -> list[RegistryMatch]:
+                raise NotImplementedError
+
+            async def bulk_register(self, entities: list[KnownEntity]) -> int:
+                raise NotImplementedError
+
+        registry: EntityRegistry = MyRegistry()
+        assert isinstance(registry, EntityRegistry)

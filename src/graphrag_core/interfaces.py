@@ -5,15 +5,20 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from graphrag_core.models import (
+    ApplyResult,
+    ApprovalBatch,
     AuditTrail,
     ChunkConfig,
+    CurationIssue,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
     GraphRelationship,
     ImportRun,
+    KnownEntity,
     OntologySchema,
     ParsedDocument,
+    RegistryMatch,
     SchemaViolation,
     SearchResult,
 )
@@ -111,6 +116,10 @@ class GraphStore(Protocol):
 
     async def validate_schema(self) -> list[SchemaViolation]: ...
 
+    async def list_nodes(self) -> list[GraphNode]: ...
+
+    async def count_relationships(self) -> int: ...
+
 
 # ---------------------------------------------------------------------------
 # BB4: Hybrid Search
@@ -135,3 +144,51 @@ class SearchEngine(Protocol):
     async def hybrid_search(
         self, query: str, embedding: list[float], top_k: int = 10
     ) -> list[SearchResult]: ...
+
+
+# ---------------------------------------------------------------------------
+# BB5: Governed Curation
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class DetectionLayer(Protocol):
+    """Deterministic quality checks on the knowledge graph."""
+
+    async def detect(
+        self, graph_store: GraphStore, schema: OntologySchema
+    ) -> list[CurationIssue]: ...
+
+
+@runtime_checkable
+class LLMCurationLayer(Protocol):
+    """LLM-based curation suggestions (entity resolution, relevance)."""
+
+    async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]: ...
+
+
+@runtime_checkable
+class ApprovalGateway(Protocol):
+    """Human approval for high-impact curation operations."""
+
+    async def submit_for_approval(self, issues: list[CurationIssue]) -> str: ...
+
+    async def get_approval_status(self, batch_id: str) -> ApprovalBatch: ...
+
+    async def apply_approved(self, batch_id: str) -> ApplyResult: ...
+
+
+# ---------------------------------------------------------------------------
+# BB6: Known Entity Registry
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class EntityRegistry(Protocol):
+    """Manages known entities for deduplication during extraction."""
+
+    async def register(self, entity: KnownEntity) -> str: ...
+
+    async def lookup(
+        self, name: str, entity_type: str, match_strategy: str = "fuzzy"
+    ) -> list[RegistryMatch]: ...
+
+    async def bulk_register(self, entities: list[KnownEntity]) -> int: ...
