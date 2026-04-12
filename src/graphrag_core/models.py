@@ -150,3 +150,54 @@ class SearchResult(BaseModel):
     score: float
     source: str
     properties: dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# BB5: Governed Curation
+# ---------------------------------------------------------------------------
+
+class CurationIssue(BaseModel):
+    id: str
+    issue_type: str          # "duplicate", "orphan", "schema_violation", "skipped_detection"
+    severity: str            # "info", "warning", "error"
+    affected_nodes: list[str]
+    suggested_action: str
+    auto_fixable: bool
+    source_layer: str        # "deterministic", "llm"
+
+
+class CurationReport(BaseModel):
+    issues: list[CurationIssue]
+    nodes_scanned: int
+    relationships_scanned: int
+
+
+class ApprovalBatch(BaseModel):
+    batch_id: str
+    status: str              # "pending", "approved", "rejected", "partial"
+    issues: list[CurationIssue]
+
+
+class ApplyResult(BaseModel):
+    batch_id: str
+    applied: int
+    failed: int
+    errors: list[str]
+
+
+# ---------------------------------------------------------------------------
+# BB6: Known Entity Registry
+# ---------------------------------------------------------------------------
+
+class KnownEntity(BaseModel):
+    name: str
+    entity_type: str
+    aliases: list[str] = []
+    properties: dict[str, Any] = {}
+
+
+class RegistryMatch(BaseModel):
+    entity_id: str
+    name: str
+    score: float           # 0.0-1.0
+    match_method: str      # "exact", "fuzzy", "embedding"
