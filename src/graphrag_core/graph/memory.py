@@ -22,7 +22,12 @@ class InMemoryGraphStore:
         self._schema: OntologySchema | None = None
 
     async def merge_node(self, node: GraphNode, import_run_id: str) -> str:
-        self._nodes[node.id] = node
+        existing = self._nodes.get(node.id)
+        if existing:
+            merged_props = {**existing.properties, **node.properties}
+            self._nodes[node.id] = GraphNode(id=node.id, label=node.label, properties=merged_props)
+        else:
+            self._nodes[node.id] = node
         return node.id
 
     async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -> str:
