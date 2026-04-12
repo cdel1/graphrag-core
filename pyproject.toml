@@ -20,6 +20,11 @@ markers = [
     "integration: requires external services (Neo4j, LLM APIs)",
 ]
 
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+neo4j = ["neo4j>=5.0"]
+all = ["graphrag-core[anthropic,neo4j]"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
