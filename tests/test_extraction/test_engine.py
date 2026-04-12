@@ -117,3 +117,100 @@ class TestExtractionEngineHappyPath:
         assert chunk_ids == {"chunk-0"}
         node_ids = {p.node_id for p in result.provenance}
         assert node_ids == {"person-alice", "company-acme"}
+
+
+class TestExtractionEngineValidation:
+    @pytest.mark.asyncio
+    async def test_drops_off_schema_nodes(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+                {"id": "loc-nyc", "label": "Location", "properties": {"name": "New York"}},
+            ],
+            "relationships": [],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
+
+        assert len(result.nodes) == 1
+        assert result.nodes[0].label == "Person"
+
+    @pytest.mark.asyncio
+    async def test_drops_off_schema_relationships(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+                {"id": "company-acme", "label": "Company", "properties": {"name": "Acme"}},
+            ],
+            "relationships": [
+                {"source_id": "person-alice", "target_id": "company-acme", "type": "FOUNDED", "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
+
+        assert len(result.relationships) == 0
+
+    @pytest.mark.asyncio
+    async def test_drops_relationship_with_wrong_source_type(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "company-a", "label": "Company", "properties": {"name": "A"}},
+                {"id": "company-b", "label": "Company", "properties": {"name": "B"}},
+            ],
+            "relationships": [
+                {"source_id": "company-a", "target_id": "company-b", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
+
+        assert len(result.relationships) == 0
+
+    @pytest.mark.asyncio
+    async def test_drops_dangling_relationships(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+                {"id": "loc-nyc", "label": "Location", "properties": {"name": "NYC"}},
+            ],
+            "relationships": [
+                {"source_id": "person-alice", "target_id": "loc-nyc", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
+
+        assert len(result.nodes) == 1
+        assert len(result.relationships) == 0
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_raises(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=["not valid json {{"]))
+        with pytest.raises(json.JSONDecodeError):
+            await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
+
+    @pytest.mark.asyncio
+    async def test_empty_chunks_returns_empty_result(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        result = await engine.extract(chunks=[], schema=_schema(), import_run=_import_run())
+
+        assert result.nodes == []
+        assert result.relationships == []
+        assert result.provenance == []
