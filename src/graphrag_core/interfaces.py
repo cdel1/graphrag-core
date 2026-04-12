@@ -56,6 +56,19 @@ class IngestionPipeline(Protocol):
     ) -> list[DocumentChunk]: ...
 
 
+@runtime_checkable
+class LLMClient(Protocol):
+    """Sends structured prompts to a language model and returns text."""
+
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str: ...
+
+
 # ---------------------------------------------------------------------------
 # BB2: Schema-Guided Entity Extraction
 # ---------------------------------------------------------------------------

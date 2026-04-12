@@ -6,6 +6,7 @@ from graphrag_core.interfaces import (
     EmbeddingModel,
     ExtractionEngine,
     GraphStore,
+    LLMClient,
     SearchEngine,
 )
 from graphrag_core.models import (
@@ -108,6 +109,22 @@ class TestGraphStoreProtocol:
 
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
+
+
+class TestLLMClientProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyLLMClient:
+            async def complete(
+                self,
+                messages: list[dict[str, str]],
+                system: str | None = None,
+                temperature: float = 0.0,
+                max_tokens: int = 4096,
+            ) -> str:
+                raise NotImplementedError
+
+        client: LLMClient = MyLLMClient()
+        assert isinstance(client, LLMClient)
 
 
 class TestSearchEngineProtocol:
