@@ -144,3 +144,12 @@ class TestInMemoryHybridSearch:
         assert len(results) >= 1
         assert results[0].source == "hybrid"
         assert results[0].node_id == "n1"
+
+
+class TestInMemorySearchEngineProtocol:
+    def test_satisfies_search_engine_protocol(self):
+        from graphrag_core.interfaces import SearchEngine
+        from graphrag_core.search.memory import InMemorySearchEngine
+
+        engine = InMemorySearchEngine(nodes=[])
+        assert isinstance(engine, SearchEngine)
