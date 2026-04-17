@@ -136,3 +136,9 @@ try:
     __all__.append("AnthropicLLMClient")
 except ImportError:
     pass
+
+try:
+    from graphrag_core.llm import OpenAILLMClient
+    __all__.append("OpenAILLMClient")
+except ImportError:
+    pass
