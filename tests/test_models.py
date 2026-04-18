@@ -3,6 +3,7 @@ from datetime import date, datetime
 from graphrag_core.models import (
     AuditTrail,
     ChunkConfig,
+    ChunkExtractionResult,
     DocumentChunk,
     DocumentMetadata,
     ExtractionResult,
@@ -226,3 +227,25 @@ class TestSearchModels:
         )
         assert result.source == "fulltext"
         assert result.properties["matched_field"] == "name"
+
+
+class TestChunkExtractionResult:
+    def test_chunk_extraction_result(self):
+        result = ChunkExtractionResult(
+            nodes=[
+                ExtractedNode(id="doc-1", label="Document", properties={"title": "Report"}),
+            ],
+            relationships=[
+                ExtractedRelationship(
+                    source_id="doc-1", target_id="person-1", type="MENTIONS",
+                ),
+            ],
+        )
+        assert len(result.nodes) == 1
+        assert len(result.relationships) == 1
+        assert result.nodes[0].label == "Document"
+
+    def test_chunk_extraction_result_empty(self):
+        result = ChunkExtractionResult(nodes=[], relationships=[])
+        assert result.nodes == []
+        assert result.relationships == []

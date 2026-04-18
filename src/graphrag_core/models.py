@@ -106,6 +106,12 @@ class ExtractionResult(BaseModel):
     provenance: list[ProvenanceLink]
 
 
+class ChunkExtractionResult(BaseModel):
+    """LLM extraction output for a single chunk (no provenance — engine adds that)."""
+    nodes: list[ExtractedNode]
+    relationships: list[ExtractedRelationship]
+
+
 # ---------------------------------------------------------------------------
 # BB3: Provenance-Native Knowledge Graph
 # ---------------------------------------------------------------------------

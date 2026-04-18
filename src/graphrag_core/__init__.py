@@ -35,6 +35,7 @@ from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
 from graphrag_core.agents import AgentContext, SequentialOrchestrator
 from graphrag_core.models import (
     AgentResult,
+    ChunkExtractionResult,
     CurationIssue,
     CurationReport,
     DocumentChunk,
@@ -98,6 +99,7 @@ __all__ = [
     "SequentialOrchestrator",
     # Models
     "AgentResult",
+    "ChunkExtractionResult",
     "CurationIssue",
     "CurationReport",
     "DocumentChunk",
