@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from pydantic import BaseModel
+
 from graphrag_core.models import (
     AgentResult,
     ApplyResult,
@@ -76,6 +78,15 @@ class LLMClient(Protocol):
         temperature: float = 0.0,
         max_tokens: int = 4096,
     ) -> str: ...
+
+    async def complete_json(
+        self,
+        messages: list[dict[str, str]],
+        schema: type[BaseModel],
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> BaseModel: ...
 
 
 # ---------------------------------------------------------------------------

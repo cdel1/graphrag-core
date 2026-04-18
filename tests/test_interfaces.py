@@ -1,5 +1,7 @@
 """Test that concrete classes can satisfy each Protocol."""
 
+from pydantic import BaseModel
+
 from graphrag_core.interfaces import (
     Agent,
     ApprovalGateway,
@@ -143,6 +145,16 @@ class TestLLMClientProtocol:
                 temperature: float = 0.0,
                 max_tokens: int = 4096,
             ) -> str:
+                raise NotImplementedError
+
+            async def complete_json(
+                self,
+                messages: list[dict[str, str]],
+                schema: type[BaseModel],
+                system: str | None = None,
+                temperature: float = 0.0,
+                max_tokens: int = 4096,
+            ) -> BaseModel:
                 raise NotImplementedError
 
         client: LLMClient = MyLLMClient()

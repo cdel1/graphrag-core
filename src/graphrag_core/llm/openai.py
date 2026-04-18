@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 
 
 class OpenAILLMClient:
@@ -33,3 +34,31 @@ class OpenAILLMClient:
             max_tokens=max_tokens,
         )
         return response.choices[0].message.content
+
+    async def complete_json(
+        self,
+        messages: list[dict[str, str]],
+        schema: type[BaseModel],
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> BaseModel:
+        full_messages = list(messages)
+        if system is not None:
+            full_messages.insert(0, {"role": "system", "content": system})
+        json_schema = schema.model_json_schema()
+        response = await self._client.chat.completions.create(
+            model=self._model,
+            messages=full_messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema.__name__,
+                    "schema": json_schema,
+                    "strict": True,
+                },
+            },
+        )
+        return schema.model_validate_json(response.choices[0].message.content)
