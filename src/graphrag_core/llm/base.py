@@ -59,7 +59,8 @@ class BaseLLMClient:
     def _strip_json(text: str) -> str:
         text = text.strip()
         if text.startswith("```"):
-            text = text[text.index("\n") + 1 :]
+            nl = text.find("\n")
+            text = text[nl + 1 :] if nl != -1 else ""
         if text.endswith("```"):
             text = text[:-3]
         return text.strip()
