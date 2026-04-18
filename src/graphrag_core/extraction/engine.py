@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
-
 from graphrag_core.interfaces import LLMClient
 from graphrag_core.models import (
+    ChunkExtractionResult,
     DocumentChunk,
     ExtractedNode,
     ExtractedRelationship,
@@ -55,12 +54,13 @@ class LLMExtractionEngine:
     async def _extract_chunk(
         self, chunk: DocumentChunk, system_prompt: str
     ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        response = await self._llm.complete(
+        result = await self._llm.complete_json(
             messages=[{"role": "user", "content": chunk.text}],
+            schema=ChunkExtractionResult,
             system=system_prompt,
             temperature=0.0,
         )
-        return self._parse_response(response)
+        return result.nodes, result.relationships
 
     def _build_system_prompt(self, schema: OntologySchema) -> str:
         node_descriptions = []
@@ -85,52 +85,12 @@ class LLMExtractionEngine:
             + "\n\nALLOWED RELATIONSHIP TYPES:\n"
             + "\n".join(rel_descriptions)
             + "\n\nDo not extract entities or relationships not listed above.\n\n"
-            "Respond with ONLY a JSON object in this exact format:\n"
-            '{"nodes": [{"id": "<unique_id>", "label": "<NodeType>", "properties": {<key>: <value>}}], '
-            '"relationships": [{"source_id": "<node_id>", "target_id": "<node_id>", "type": "<RelType>", "properties": {}}]}\n\n'
             "Rules:\n"
             "- Every node id must be unique and descriptive (e.g., 'person-alice', 'company-acme')\n"
             "- Only use node types and relationship types listed above\n"
             "- Include all required properties for each node type\n"
             "- Return empty arrays if no entities are found"
         )
-
-    @staticmethod
-    def _strip_fences(text: str) -> str:
-        """Strip markdown code fences from LLM responses."""
-        text = text.strip()
-        if text.startswith("```"):
-            first_newline = text.index("\n")
-            text = text[first_newline + 1:]
-        if text.endswith("```"):
-            text = text[:-3]
-        return text.strip()
-
-    def _parse_response(
-        self, response: str
-    ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        data = json.loads(self._strip_fences(response))
-
-        nodes = [
-            ExtractedNode(
-                id=n["id"],
-                label=n["label"],
-                properties=n.get("properties", {}),
-            )
-            for n in data.get("nodes", [])
-        ]
-
-        rels = [
-            ExtractedRelationship(
-                source_id=r["source_id"],
-                target_id=r["target_id"],
-                type=r["type"],
-                properties=r.get("properties", {}),
-            )
-            for r in data.get("relationships", [])
-        ]
-
-        return nodes, rels
 
     def _validate(
         self,

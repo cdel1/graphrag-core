@@ -9,6 +9,7 @@ import pytest
 
 from graphrag_core.models import (
     ChunkConfig,
+    ChunkExtractionResult,
     DocumentChunk,
     ImportRun,
     NodeTypeDefinition,
@@ -35,6 +36,19 @@ class FakeLLMClient:
         response = self._responses[self._call_index]
         self._call_index += 1
         return response
+
+    async def complete_json(
+        self,
+        messages: list[dict[str, str]],
+        schema: type,
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> ChunkExtractionResult:
+        response = self._responses[self._call_index]
+        self._call_index += 1
+        data = json.loads(response)
+        return ChunkExtractionResult(**data)
 
 
 def _schema() -> OntologySchema:
@@ -195,14 +209,6 @@ class TestExtractionEngineValidation:
 
         assert len(result.nodes) == 1
         assert len(result.relationships) == 0
-
-    @pytest.mark.asyncio
-    async def test_malformed_json_raises(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
-
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=["not valid json {{"]))
-        with pytest.raises(json.JSONDecodeError):
-            await engine.extract(chunks=_chunks(), schema=_schema(), import_run=_import_run())
 
     @pytest.mark.asyncio
     async def test_empty_chunks_returns_empty_result(self):
