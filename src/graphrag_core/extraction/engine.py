@@ -95,10 +95,21 @@ class LLMExtractionEngine:
             "- Return empty arrays if no entities are found"
         )
 
+    @staticmethod
+    def _strip_fences(text: str) -> str:
+        """Strip markdown code fences from LLM responses."""
+        text = text.strip()
+        if text.startswith("```"):
+            first_newline = text.index("\n")
+            text = text[first_newline + 1:]
+        if text.endswith("```"):
+            text = text[:-3]
+        return text.strip()
+
     def _parse_response(
         self, response: str
     ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        data = json.loads(response)
+        data = json.loads(self._strip_fences(response))
 
         nodes = [
             ExtractedNode(
