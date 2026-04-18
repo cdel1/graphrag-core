@@ -33,6 +33,7 @@ from graphrag_core.registry import InMemoryEntityRegistry
 from graphrag_core.curation import DeterministicDetectionLayer, CurationPipeline
 from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
 from graphrag_core.agents import AgentContext, SequentialOrchestrator
+from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
     AgentResult,
     ChunkExtractionResult,
@@ -79,6 +80,8 @@ __all__ = [
     "PdfParser",
     "TextParser",
     "TokenChunker",
+    # LLM base
+    "BaseLLMClient",
     # BB2 implementations
     "LLMExtractionEngine",
     # BB3 implementations

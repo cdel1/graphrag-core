@@ -1,6 +1,8 @@
 """LLM client implementations."""
 
-__all__: list[str] = []
+from graphrag_core.llm.base import BaseLLMClient
+
+__all__: list[str] = ["BaseLLMClient"]
 
 try:
     from graphrag_core.llm.anthropic import AnthropicLLMClient
