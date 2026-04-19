@@ -68,6 +68,7 @@ class NodeTypeDefinition(BaseModel):
     label: str
     properties: list[PropertyDefinition]
     required_properties: list[str] = []
+    description: str | None = None
 
 
 class RelationshipTypeDefinition(BaseModel):

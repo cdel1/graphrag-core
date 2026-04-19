@@ -275,3 +275,20 @@ class TestExtractionEngineProtocol:
 
         engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
         assert isinstance(engine, ExtractionEngine)
+
+
+class TestNodeTypeDescription:
+    def test_node_type_definition_accepts_description(self):
+        ntd = NodeTypeDefinition(
+            label="Topic",
+            properties=[PropertyDefinition(name="name", type="string", required=True)],
+            description="A recurring subject or theme identified across documents",
+        )
+        assert ntd.description == "A recurring subject or theme identified across documents"
+
+    def test_node_type_definition_description_defaults_to_none(self):
+        ntd = NodeTypeDefinition(
+            label="Topic",
+            properties=[PropertyDefinition(name="name", type="string", required=True)],
+        )
+        assert ntd.description is None
