@@ -11,6 +11,8 @@ from graphrag_core.models import (
     ChunkConfig,
     ChunkExtractionResult,
     DocumentChunk,
+    ExtractedNode,
+    ExtractedRelationship,
     ImportRun,
     NodeTypeDefinition,
     OntologySchema,
@@ -404,3 +406,81 @@ class TestDescriptionsInPrompt:
         lines = [l for l in prompt.split("\n") if "WORKS_AT" in l]
         assert len(lines) == 1
         assert "\u2014" not in lines[0]
+
+
+class TestValidateExtractionStandalone:
+    def test_drops_off_schema_nodes(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="loc-nyc", label="Location", properties={"name": "NYC"}),
+        ]
+        rels = []
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 1
+        assert valid_nodes[0].label == "Person"
+
+    def test_drops_off_schema_relationships(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="company-acme", label="Company", properties={"name": "Acme"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="FOUNDED", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 2
+        assert len(valid_rels) == 0
+
+    def test_drops_dangling_relationships(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-gone", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 1
+        assert len(valid_rels) == 0
+
+    def test_drops_relationship_with_wrong_source_type(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="company-a", label="Company", properties={"name": "A"}),
+            ExtractedNode(id="company-b", label="Company", properties={"name": "B"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="company-a", target_id="company-b", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_rels) == 0
+
+    def test_valid_extraction_passes_through(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="company-acme", label="Company", properties={"name": "Acme"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 2
+        assert len(valid_rels) == 1
