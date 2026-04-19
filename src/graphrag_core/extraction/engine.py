@@ -69,13 +69,17 @@ class LLMExtractionEngine:
                 f"{p.name} ({p.type}{', required' if p.required else ''})"
                 for p in nt.properties
             )
-            node_descriptions.append(f"- {nt.label}: properties=[{props}]")
+            line = f"- {nt.label}: properties=[{props}]"
+            if nt.description:
+                line += f" \u2014 {nt.description}"
+            node_descriptions.append(line)
 
         rel_descriptions = []
         for rt in schema.relationship_types:
-            rel_descriptions.append(
-                f"- {rt.type}: {rt.source_types} -> {rt.target_types}"
-            )
+            line = f"- {rt.type}: {rt.source_types} -> {rt.target_types}"
+            if rt.description:
+                line += f" \u2014 {rt.description}"
+            rel_descriptions.append(line)
 
         return (
             "You are an entity extraction engine. Extract entities and relationships "

@@ -311,3 +311,46 @@ class TestRelationshipTypeDescription:
             target_types=["Finding"],
         )
         assert rtd.description is None
+
+
+class TestDescriptionsInPrompt:
+    def test_node_description_appears_in_prompt(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                    description="A recurring subject or theme",
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "A recurring subject or theme" in prompt
+        assert "Topic" in prompt
+
+    def test_node_without_description_has_no_dash_suffix(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Person",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "- Person: properties=" in prompt
+        lines = [l for l in prompt.split("\n") if "Person" in l]
+        assert len(lines) == 1
+        assert "\u2014" not in lines[0]  # em dash should NOT appear
