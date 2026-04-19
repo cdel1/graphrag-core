@@ -354,3 +354,53 @@ class TestDescriptionsInPrompt:
         lines = [l for l in prompt.split("\n") if "Person" in l]
         assert len(lines) == 1
         assert "\u2014" not in lines[0]  # em dash should NOT appear
+
+    def test_relationship_description_appears_in_prompt(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+                NodeTypeDefinition(
+                    label="Finding",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+            ],
+            relationship_types=[
+                RelationshipTypeDefinition(
+                    type="HAS_FINDING",
+                    source_types=["Topic"],
+                    target_types=["Finding"],
+                    description="Links a topic to an observation drawn from evidence",
+                ),
+            ],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "Links a topic to an observation drawn from evidence" in prompt
+
+    def test_relationship_without_description_has_no_dash_suffix(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[],
+            relationship_types=[
+                RelationshipTypeDefinition(
+                    type="WORKS_AT",
+                    source_types=["Person"],
+                    target_types=["Company"],
+                ),
+            ],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        lines = [l for l in prompt.split("\n") if "WORKS_AT" in l]
+        assert len(lines) == 1
+        assert "\u2014" not in lines[0]
