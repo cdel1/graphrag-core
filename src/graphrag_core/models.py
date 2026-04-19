@@ -75,6 +75,7 @@ class RelationshipTypeDefinition(BaseModel):
     type: str
     source_types: list[str]
     target_types: list[str]
+    description: str | None = None
 
 
 class OntologySchema(BaseModel):

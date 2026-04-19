@@ -292,3 +292,22 @@ class TestNodeTypeDescription:
             properties=[PropertyDefinition(name="name", type="string", required=True)],
         )
         assert ntd.description is None
+
+
+class TestRelationshipTypeDescription:
+    def test_relationship_type_definition_accepts_description(self):
+        rtd = RelationshipTypeDefinition(
+            type="HAS_FINDING",
+            source_types=["Topic"],
+            target_types=["Finding"],
+            description="Links a topic to an observation drawn from evidence",
+        )
+        assert rtd.description == "Links a topic to an observation drawn from evidence"
+
+    def test_relationship_type_definition_description_defaults_to_none(self):
+        rtd = RelationshipTypeDefinition(
+            type="HAS_FINDING",
+            source_types=["Topic"],
+            target_types=["Finding"],
+        )
+        assert rtd.description is None
