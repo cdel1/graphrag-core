@@ -484,3 +484,18 @@ class TestValidateExtractionStandalone:
 
         assert len(valid_nodes) == 2
         assert len(valid_rels) == 1
+
+
+class TestExtractionPromptBuilder:
+    def test_prompt_builder_protocol_exists(self):
+        from graphrag_core import ExtractionPromptBuilder
+        assert hasattr(ExtractionPromptBuilder, 'build_system_prompt')
+
+    def test_custom_prompt_builder_satisfies_protocol(self):
+        from graphrag_core import ExtractionPromptBuilder
+
+        class CustomBuilder:
+            def build_system_prompt(self, schema: OntologySchema) -> str:
+                return "custom prompt"
+
+        assert isinstance(CustomBuilder(), ExtractionPromptBuilder)
