@@ -317,7 +317,7 @@ class TestRelationshipTypeDescription:
 
 class TestDescriptionsInPrompt:
     def test_node_description_appears_in_prompt(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -330,14 +330,14 @@ class TestDescriptionsInPrompt:
             relationship_types=[],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "A recurring subject or theme" in prompt
         assert "Topic" in prompt
 
     def test_node_without_description_has_no_dash_suffix(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -349,8 +349,8 @@ class TestDescriptionsInPrompt:
             relationship_types=[],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "- Person: properties=" in prompt
         lines = [l for l in prompt.split("\n") if "Person" in l]
@@ -358,7 +358,7 @@ class TestDescriptionsInPrompt:
         assert "\u2014" not in lines[0]  # em dash should NOT appear
 
     def test_relationship_description_appears_in_prompt(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -381,13 +381,13 @@ class TestDescriptionsInPrompt:
             ],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "Links a topic to an observation drawn from evidence" in prompt
 
     def test_relationship_without_description_has_no_dash_suffix(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[],
@@ -400,8 +400,8 @@ class TestDescriptionsInPrompt:
             ],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         lines = [l for l in prompt.split("\n") if "WORKS_AT" in l]
         assert len(lines) == 1
@@ -484,3 +484,100 @@ class TestValidateExtractionStandalone:
 
         assert len(valid_nodes) == 2
         assert len(valid_rels) == 1
+
+
+class TestExtractionPromptBuilder:
+    def test_prompt_builder_protocol_exists(self):
+        from graphrag_core import ExtractionPromptBuilder
+        assert hasattr(ExtractionPromptBuilder, 'build_system_prompt')
+
+    def test_custom_prompt_builder_satisfies_protocol(self):
+        from graphrag_core import ExtractionPromptBuilder
+
+        class CustomBuilder:
+            def build_system_prompt(self, schema: OntologySchema) -> str:
+                return "custom prompt"
+
+        assert isinstance(CustomBuilder(), ExtractionPromptBuilder)
+
+
+class TestDefaultPromptBuilder:
+    def test_default_builder_produces_expected_output(self):
+        from graphrag_core.extraction import DefaultPromptBuilder
+
+        schema = _schema()
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
+
+        assert "Company" in prompt
+        assert "Person" in prompt
+        assert "WORKS_AT" in prompt
+        assert "entity extraction engine" in prompt
+
+    def test_default_builder_includes_descriptions_when_present(self):
+        from graphrag_core.extraction import DefaultPromptBuilder
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                    description="A recurring subject or theme",
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
+
+        assert "A recurring subject or theme" in prompt
+
+
+class TestCustomPromptBuilderInjection:
+    @pytest.mark.asyncio
+    async def test_engine_uses_injected_prompt_builder(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        class TrackingBuilder:
+            def __init__(self):
+                self.called = False
+                self.last_schema = None
+
+            def build_system_prompt(self, schema):
+                self.called = True
+                self.last_schema = schema
+                return "You are a test extraction engine. Extract nothing."
+
+        llm_response = json.dumps({"nodes": [], "relationships": []})
+        builder = TrackingBuilder()
+        engine = LLMExtractionEngine(
+            llm_client=FakeLLMClient(responses=[llm_response]),
+            prompt_builder=builder,
+        )
+
+        result = await engine.extract(
+            chunks=_chunks(), schema=_schema(), import_run=_import_run(),
+        )
+
+        assert builder.called is True
+        assert builder.last_schema is not None
+        assert result.nodes == []
+
+    @pytest.mark.asyncio
+    async def test_engine_uses_default_builder_when_none_provided(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+            ],
+            "relationships": [],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(
+            chunks=_chunks(), schema=_schema(), import_run=_import_run(),
+        )
+
+        assert len(result.nodes) == 1

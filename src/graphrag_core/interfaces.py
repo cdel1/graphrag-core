@@ -105,6 +105,13 @@ class ExtractionEngine(Protocol):
     ) -> ExtractionResult: ...
 
 
+@runtime_checkable
+class ExtractionPromptBuilder(Protocol):
+    """Builds the system prompt for LLM-based entity extraction."""
+
+    def build_system_prompt(self, schema: OntologySchema) -> str: ...
+
+
 # ---------------------------------------------------------------------------
 # BB3: Provenance-Native Knowledge Graph
 # ---------------------------------------------------------------------------

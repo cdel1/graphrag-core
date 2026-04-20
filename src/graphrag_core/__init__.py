@@ -11,6 +11,7 @@ from graphrag_core.interfaces import (
     EmbeddingModel,
     EntityRegistry,
     ExtractionEngine,
+    ExtractionPromptBuilder,
     GraphStore,
     IngestionPipeline,
     LLMClient,
@@ -26,7 +27,7 @@ from graphrag_core.ingestion import (
     TextParser,
     TokenChunker,
 )
-from graphrag_core.extraction import LLMExtractionEngine
+from graphrag_core.extraction import DefaultPromptBuilder, LLMExtractionEngine
 from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.search import InMemorySearchEngine
 from graphrag_core.registry import InMemoryEntityRegistry
@@ -67,6 +68,7 @@ __all__ = [
     "EmbeddingModel",
     "EntityRegistry",
     "ExtractionEngine",
+    "ExtractionPromptBuilder",
     "GraphStore",
     "IngestionPipeline",
     "LLMClient",
@@ -83,6 +85,7 @@ __all__ = [
     # LLM base
     "BaseLLMClient",
     # BB2 implementations
+    "DefaultPromptBuilder",
     "LLMExtractionEngine",
     # BB3 implementations
     "InMemoryGraphStore",
