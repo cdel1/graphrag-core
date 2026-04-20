@@ -499,3 +499,85 @@ class TestExtractionPromptBuilder:
                 return "custom prompt"
 
         assert isinstance(CustomBuilder(), ExtractionPromptBuilder)
+
+
+class TestDefaultPromptBuilder:
+    def test_default_builder_produces_expected_output(self):
+        from graphrag_core.extraction import DefaultPromptBuilder
+
+        schema = _schema()
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
+
+        assert "Company" in prompt
+        assert "Person" in prompt
+        assert "WORKS_AT" in prompt
+        assert "entity extraction engine" in prompt
+
+    def test_default_builder_includes_descriptions_when_present(self):
+        from graphrag_core.extraction import DefaultPromptBuilder
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                    description="A recurring subject or theme",
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
+
+        assert "A recurring subject or theme" in prompt
+
+
+class TestCustomPromptBuilderInjection:
+    @pytest.mark.asyncio
+    async def test_engine_uses_injected_prompt_builder(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        class TrackingBuilder:
+            def __init__(self):
+                self.called = False
+                self.last_schema = None
+
+            def build_system_prompt(self, schema):
+                self.called = True
+                self.last_schema = schema
+                return "You are a test extraction engine. Extract nothing."
+
+        llm_response = json.dumps({"nodes": [], "relationships": []})
+        builder = TrackingBuilder()
+        engine = LLMExtractionEngine(
+            llm_client=FakeLLMClient(responses=[llm_response]),
+            prompt_builder=builder,
+        )
+
+        result = await engine.extract(
+            chunks=_chunks(), schema=_schema(), import_run=_import_run(),
+        )
+
+        assert builder.called is True
+        assert builder.last_schema is not None
+        assert result.nodes == []
+
+    @pytest.mark.asyncio
+    async def test_engine_uses_default_builder_when_none_provided(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        llm_response = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+            ],
+            "relationships": [],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[llm_response]))
+        result = await engine.extract(
+            chunks=_chunks(), schema=_schema(), import_run=_import_run(),
+        )
+
+        assert len(result.nodes) == 1

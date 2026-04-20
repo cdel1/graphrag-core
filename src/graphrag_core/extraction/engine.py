@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from graphrag_core.interfaces import LLMClient
+from graphrag_core.interfaces import ExtractionPromptBuilder, LLMClient
 from graphrag_core.models import (
     ChunkExtractionResult,
     DocumentChunk,
@@ -55,54 +55,10 @@ def validate_extraction(
     return valid_nodes, valid_rels
 
 
-class LLMExtractionEngine:
-    """Extracts entities and relationships from text using an LLM, guided by an ontology schema."""
+class DefaultPromptBuilder:
+    """Builds the default system prompt for LLM-based entity extraction."""
 
-    def __init__(self, llm_client: LLMClient) -> None:
-        self._llm = llm_client
-
-    async def extract(
-        self,
-        chunks: list[DocumentChunk],
-        schema: OntologySchema,
-        import_run: ImportRun,
-    ) -> ExtractionResult:
-        all_nodes: list[ExtractedNode] = []
-        all_rels: list[ExtractedRelationship] = []
-        all_provenance: list[ProvenanceLink] = []
-
-        system_prompt = self._build_system_prompt(schema)
-
-        for chunk in chunks:
-            nodes, rels = await self._extract_chunk(chunk, system_prompt)
-            nodes, rels = self._validate(nodes, rels, schema)
-
-            for node in nodes:
-                all_provenance.append(
-                    ProvenanceLink(chunk_id=chunk.id, node_id=node.id, confidence=1.0)
-                )
-
-            all_nodes.extend(nodes)
-            all_rels.extend(rels)
-
-        return ExtractionResult(
-            nodes=all_nodes,
-            relationships=all_rels,
-            provenance=all_provenance,
-        )
-
-    async def _extract_chunk(
-        self, chunk: DocumentChunk, system_prompt: str
-    ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        result = await self._llm.complete_json(
-            messages=[{"role": "user", "content": chunk.text}],
-            schema=ChunkExtractionResult,
-            system=system_prompt,
-            temperature=0.0,
-        )
-        return result.nodes, result.relationships
-
-    def _build_system_prompt(self, schema: OntologySchema) -> str:
+    def build_system_prompt(self, schema: OntologySchema) -> str:
         node_descriptions = []
         for nt in schema.node_types:
             props = ", ".join(
@@ -135,6 +91,59 @@ class LLMExtractionEngine:
             "- Include all required properties for each node type\n"
             "- Return empty arrays if no entities are found"
         )
+
+
+class LLMExtractionEngine:
+    """Extracts entities and relationships from text using an LLM, guided by an ontology schema."""
+
+    def __init__(
+        self,
+        llm_client: LLMClient,
+        prompt_builder: ExtractionPromptBuilder | None = None,
+    ) -> None:
+        self._llm = llm_client
+        self._prompt_builder = prompt_builder or DefaultPromptBuilder()
+
+    async def extract(
+        self,
+        chunks: list[DocumentChunk],
+        schema: OntologySchema,
+        import_run: ImportRun,
+    ) -> ExtractionResult:
+        all_nodes: list[ExtractedNode] = []
+        all_rels: list[ExtractedRelationship] = []
+        all_provenance: list[ProvenanceLink] = []
+
+        system_prompt = self._prompt_builder.build_system_prompt(schema)
+
+        for chunk in chunks:
+            nodes, rels = await self._extract_chunk(chunk, system_prompt)
+            nodes, rels = self._validate(nodes, rels, schema)
+
+            for node in nodes:
+                all_provenance.append(
+                    ProvenanceLink(chunk_id=chunk.id, node_id=node.id, confidence=1.0)
+                )
+
+            all_nodes.extend(nodes)
+            all_rels.extend(rels)
+
+        return ExtractionResult(
+            nodes=all_nodes,
+            relationships=all_rels,
+            provenance=all_provenance,
+        )
+
+    async def _extract_chunk(
+        self, chunk: DocumentChunk, system_prompt: str
+    ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
+        result = await self._llm.complete_json(
+            messages=[{"role": "user", "content": chunk.text}],
+            schema=ChunkExtractionResult,
+            system=system_prompt,
+            temperature=0.0,
+        )
+        return result.nodes, result.relationships
 
     def _validate(
         self,
