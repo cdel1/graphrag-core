@@ -15,6 +15,46 @@ from graphrag_core.models import (
 )
 
 
+def validate_extraction(
+    nodes: list[ExtractedNode],
+    rels: list[ExtractedRelationship],
+    schema: OntologySchema,
+) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
+    """Filter extracted nodes and relationships to match schema constraints.
+
+    Removes:
+    - Nodes with labels not in the schema
+    - Relationships with types not in the schema
+    - Relationships referencing non-existent node IDs
+    - Relationships violating source/target type constraints
+    """
+    allowed_labels = {nt.label for nt in schema.node_types}
+    allowed_rel_types = {rt.type for rt in schema.relationship_types}
+    rel_constraints = {
+        rt.type: (set(rt.source_types), set(rt.target_types))
+        for rt in schema.relationship_types
+    }
+
+    valid_nodes = [n for n in nodes if n.label in allowed_labels]
+    valid_node_ids = {n.id for n in valid_nodes}
+    node_labels = {n.id: n.label for n in valid_nodes}
+
+    valid_rels = []
+    for rel in rels:
+        if rel.type not in allowed_rel_types:
+            continue
+        if rel.source_id not in valid_node_ids or rel.target_id not in valid_node_ids:
+            continue
+        source_types, target_types = rel_constraints[rel.type]
+        if node_labels[rel.source_id] not in source_types:
+            continue
+        if node_labels[rel.target_id] not in target_types:
+            continue
+        valid_rels.append(rel)
+
+    return valid_nodes, valid_rels
+
+
 class LLMExtractionEngine:
     """Extracts entities and relationships from text using an LLM, guided by an ontology schema."""
 
@@ -69,13 +109,17 @@ class LLMExtractionEngine:
                 f"{p.name} ({p.type}{', required' if p.required else ''})"
                 for p in nt.properties
             )
-            node_descriptions.append(f"- {nt.label}: properties=[{props}]")
+            line = f"- {nt.label}: properties=[{props}]"
+            if nt.description:
+                line += f" \u2014 {nt.description}"
+            node_descriptions.append(line)
 
         rel_descriptions = []
         for rt in schema.relationship_types:
-            rel_descriptions.append(
-                f"- {rt.type}: {rt.source_types} -> {rt.target_types}"
-            )
+            line = f"- {rt.type}: {rt.source_types} -> {rt.target_types}"
+            if rt.description:
+                line += f" \u2014 {rt.description}"
+            rel_descriptions.append(line)
 
         return (
             "You are an entity extraction engine. Extract entities and relationships "
@@ -98,28 +142,4 @@ class LLMExtractionEngine:
         rels: list[ExtractedRelationship],
         schema: OntologySchema,
     ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        allowed_labels = {nt.label for nt in schema.node_types}
-        allowed_rel_types = {rt.type for rt in schema.relationship_types}
-        rel_constraints = {
-            rt.type: (set(rt.source_types), set(rt.target_types))
-            for rt in schema.relationship_types
-        }
-
-        valid_nodes = [n for n in nodes if n.label in allowed_labels]
-        valid_node_ids = {n.id for n in valid_nodes}
-        node_labels = {n.id: n.label for n in valid_nodes}
-
-        valid_rels = []
-        for rel in rels:
-            if rel.type not in allowed_rel_types:
-                continue
-            if rel.source_id not in valid_node_ids or rel.target_id not in valid_node_ids:
-                continue
-            source_types, target_types = rel_constraints[rel.type]
-            if node_labels[rel.source_id] not in source_types:
-                continue
-            if node_labels[rel.target_id] not in target_types:
-                continue
-            valid_rels.append(rel)
-
-        return valid_nodes, valid_rels
+        return validate_extraction(nodes, rels, schema)

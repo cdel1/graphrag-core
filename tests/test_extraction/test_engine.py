@@ -11,6 +11,8 @@ from graphrag_core.models import (
     ChunkConfig,
     ChunkExtractionResult,
     DocumentChunk,
+    ExtractedNode,
+    ExtractedRelationship,
     ImportRun,
     NodeTypeDefinition,
     OntologySchema,
@@ -275,3 +277,210 @@ class TestExtractionEngineProtocol:
 
         engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
         assert isinstance(engine, ExtractionEngine)
+
+
+class TestNodeTypeDescription:
+    def test_node_type_definition_accepts_description(self):
+        ntd = NodeTypeDefinition(
+            label="Topic",
+            properties=[PropertyDefinition(name="name", type="string", required=True)],
+            description="A recurring subject or theme identified across documents",
+        )
+        assert ntd.description == "A recurring subject or theme identified across documents"
+
+    def test_node_type_definition_description_defaults_to_none(self):
+        ntd = NodeTypeDefinition(
+            label="Topic",
+            properties=[PropertyDefinition(name="name", type="string", required=True)],
+        )
+        assert ntd.description is None
+
+
+class TestRelationshipTypeDescription:
+    def test_relationship_type_definition_accepts_description(self):
+        rtd = RelationshipTypeDefinition(
+            type="HAS_FINDING",
+            source_types=["Topic"],
+            target_types=["Finding"],
+            description="Links a topic to an observation drawn from evidence",
+        )
+        assert rtd.description == "Links a topic to an observation drawn from evidence"
+
+    def test_relationship_type_definition_description_defaults_to_none(self):
+        rtd = RelationshipTypeDefinition(
+            type="HAS_FINDING",
+            source_types=["Topic"],
+            target_types=["Finding"],
+        )
+        assert rtd.description is None
+
+
+class TestDescriptionsInPrompt:
+    def test_node_description_appears_in_prompt(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                    description="A recurring subject or theme",
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "A recurring subject or theme" in prompt
+        assert "Topic" in prompt
+
+    def test_node_without_description_has_no_dash_suffix(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Person",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+            ],
+            relationship_types=[],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "- Person: properties=" in prompt
+        lines = [l for l in prompt.split("\n") if "Person" in l]
+        assert len(lines) == 1
+        assert "\u2014" not in lines[0]  # em dash should NOT appear
+
+    def test_relationship_description_appears_in_prompt(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[
+                NodeTypeDefinition(
+                    label="Topic",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+                NodeTypeDefinition(
+                    label="Finding",
+                    properties=[PropertyDefinition(name="name", type="string", required=True)],
+                ),
+            ],
+            relationship_types=[
+                RelationshipTypeDefinition(
+                    type="HAS_FINDING",
+                    source_types=["Topic"],
+                    target_types=["Finding"],
+                    description="Links a topic to an observation drawn from evidence",
+                ),
+            ],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        assert "Links a topic to an observation drawn from evidence" in prompt
+
+    def test_relationship_without_description_has_no_dash_suffix(self):
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        schema = OntologySchema(
+            node_types=[],
+            relationship_types=[
+                RelationshipTypeDefinition(
+                    type="WORKS_AT",
+                    source_types=["Person"],
+                    target_types=["Company"],
+                ),
+            ],
+        )
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
+        prompt = engine._build_system_prompt(schema)
+
+        lines = [l for l in prompt.split("\n") if "WORKS_AT" in l]
+        assert len(lines) == 1
+        assert "\u2014" not in lines[0]
+
+
+class TestValidateExtractionStandalone:
+    def test_drops_off_schema_nodes(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="loc-nyc", label="Location", properties={"name": "NYC"}),
+        ]
+        rels = []
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 1
+        assert valid_nodes[0].label == "Person"
+
+    def test_drops_off_schema_relationships(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="company-acme", label="Company", properties={"name": "Acme"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="FOUNDED", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 2
+        assert len(valid_rels) == 0
+
+    def test_drops_dangling_relationships(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-gone", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 1
+        assert len(valid_rels) == 0
+
+    def test_drops_relationship_with_wrong_source_type(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="company-a", label="Company", properties={"name": "A"}),
+            ExtractedNode(id="company-b", label="Company", properties={"name": "B"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="company-a", target_id="company-b", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_rels) == 0
+
+    def test_valid_extraction_passes_through(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [
+            ExtractedNode(id="person-alice", label="Person", properties={"name": "Alice"}),
+            ExtractedNode(id="company-acme", label="Company", properties={"name": "Acme"}),
+        ]
+        rels = [
+            ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="WORKS_AT", properties={}),
+        ]
+
+        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+
+        assert len(valid_nodes) == 2
+        assert len(valid_rels) == 1

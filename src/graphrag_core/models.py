@@ -68,12 +68,14 @@ class NodeTypeDefinition(BaseModel):
     label: str
     properties: list[PropertyDefinition]
     required_properties: list[str] = []
+    description: str | None = None
 
 
 class RelationshipTypeDefinition(BaseModel):
     type: str
     source_types: list[str]
     target_types: list[str]
+    description: str | None = None
 
 
 class OntologySchema(BaseModel):
