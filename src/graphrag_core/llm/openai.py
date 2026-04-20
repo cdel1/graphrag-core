@@ -57,7 +57,7 @@ class OpenAILLMClient:
                 "json_schema": {
                     "name": schema.__name__,
                     "schema": json_schema,
-                    "strict": True,
+                    "strict": False,
                 },
             },
         )
