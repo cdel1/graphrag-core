@@ -317,7 +317,7 @@ class TestRelationshipTypeDescription:
 
 class TestDescriptionsInPrompt:
     def test_node_description_appears_in_prompt(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -330,14 +330,14 @@ class TestDescriptionsInPrompt:
             relationship_types=[],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "A recurring subject or theme" in prompt
         assert "Topic" in prompt
 
     def test_node_without_description_has_no_dash_suffix(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -349,8 +349,8 @@ class TestDescriptionsInPrompt:
             relationship_types=[],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "- Person: properties=" in prompt
         lines = [l for l in prompt.split("\n") if "Person" in l]
@@ -358,7 +358,7 @@ class TestDescriptionsInPrompt:
         assert "\u2014" not in lines[0]  # em dash should NOT appear
 
     def test_relationship_description_appears_in_prompt(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[
@@ -381,13 +381,13 @@ class TestDescriptionsInPrompt:
             ],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         assert "Links a topic to an observation drawn from evidence" in prompt
 
     def test_relationship_without_description_has_no_dash_suffix(self):
-        from graphrag_core.extraction.engine import LLMExtractionEngine
+        from graphrag_core.extraction import DefaultPromptBuilder
 
         schema = OntologySchema(
             node_types=[],
@@ -400,8 +400,8 @@ class TestDescriptionsInPrompt:
             ],
         )
 
-        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[]))
-        prompt = engine._build_system_prompt(schema)
+        builder = DefaultPromptBuilder()
+        prompt = builder.build_system_prompt(schema)
 
         lines = [l for l in prompt.split("\n") if "WORKS_AT" in l]
         assert len(lines) == 1
