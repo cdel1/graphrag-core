@@ -11,6 +11,7 @@ from graphrag_core.interfaces import (
     EmbeddingModel,
     EntityRegistry,
     ExtractionEngine,
+    ExtractionPostProcessor,
     GraphStore,
     LLMClient,
     LLMCurationLayer,
@@ -287,3 +288,17 @@ class TestReportRendererProtocol:
 
         renderer: ReportRenderer = MyRenderer()
         assert isinstance(renderer, ReportRenderer)
+
+
+class TestExtractionPostProcessorProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyPostProcessor:
+            async def process(
+                self,
+                result: ExtractionResult,
+                existing_entities: list[GraphNode] | None = None,
+            ) -> ExtractionResult:
+                raise NotImplementedError
+
+        processor: ExtractionPostProcessor = MyPostProcessor()
+        assert isinstance(processor, ExtractionPostProcessor)

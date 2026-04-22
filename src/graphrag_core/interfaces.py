@@ -114,7 +114,7 @@ class ExtractionPromptBuilder(Protocol):
 
 @runtime_checkable
 class ExtractionPostProcessor(Protocol):
-    """Optional post-processing between extraction and storage."""
+    """Transforms an ExtractionResult before it is written to the graph store."""
 
     async def process(
         self,

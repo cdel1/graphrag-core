@@ -581,23 +581,3 @@ class TestCustomPromptBuilderInjection:
         )
 
         assert len(result.nodes) == 1
-
-
-class TestExtractionPostProcessor:
-    def test_protocol_has_process_method(self):
-        from graphrag_core import ExtractionPostProcessor
-        assert hasattr(ExtractionPostProcessor, 'process')
-
-    def test_custom_post_processor_satisfies_protocol(self):
-        from graphrag_core import ExtractionPostProcessor
-        from graphrag_core.models import ExtractionResult, GraphNode
-
-        class CustomProcessor:
-            async def process(
-                self,
-                result: ExtractionResult,
-                existing_entities: list[GraphNode] | None = None,
-            ) -> ExtractionResult:
-                return result
-
-        assert isinstance(CustomProcessor(), ExtractionPostProcessor)
