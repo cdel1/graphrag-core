@@ -112,6 +112,17 @@ class ExtractionPromptBuilder(Protocol):
     def build_system_prompt(self, schema: OntologySchema) -> str: ...
 
 
+@runtime_checkable
+class ExtractionPostProcessor(Protocol):
+    """Optional post-processing between extraction and storage."""
+
+    async def process(
+        self,
+        result: ExtractionResult,
+        existing_entities: list[GraphNode] | None = None,
+    ) -> ExtractionResult: ...
+
+
 # ---------------------------------------------------------------------------
 # BB3: Provenance-Native Knowledge Graph
 # ---------------------------------------------------------------------------

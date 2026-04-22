@@ -86,7 +86,7 @@ class TestOpenAILLMClient:
         call_kwargs = instance.chat.completions.create.call_args[1]
         assert call_kwargs["response_format"]["type"] == "json_schema"
         assert call_kwargs["response_format"]["json_schema"]["name"] == "ExtractModel"
-        assert call_kwargs["response_format"]["json_schema"]["strict"] is True
+        assert call_kwargs["response_format"]["json_schema"]["strict"] is False
 
     @pytest.mark.asyncio
     async def test_complete_json_without_system_prompt(self):
