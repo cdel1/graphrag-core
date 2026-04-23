@@ -198,6 +198,53 @@ class TestInMemoryGraphStoreSchema:
         assert violations == []
 
 
+class TestInMemoryGraphStoreListRelationships:
+    @pytest.mark.asyncio
+    async def test_list_relationships_empty(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        rels = await store.list_relationships()
+        assert rels == []
+
+    @pytest.mark.asyncio
+    async def test_list_relationships_returns_all(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        n1 = GraphNode(id="n1", label="Entity", properties={"name": "A"})
+        n2 = GraphNode(id="n2", label="Entity", properties={"name": "B"})
+        n3 = GraphNode(id="n3", label="Entity", properties={"name": "C"})
+        await store.merge_node(n1, "run-1")
+        await store.merge_node(n2, "run-1")
+        await store.merge_node(n3, "run-1")
+        r1 = GraphRelationship(source_id="n1", target_id="n2", type="RELATED", properties={})
+        r2 = GraphRelationship(source_id="n2", target_id="n3", type="ABOUT", properties={})
+        await store.merge_relationship(r1, "run-1")
+        await store.merge_relationship(r2, "run-1")
+        rels = await store.list_relationships()
+        assert len(rels) == 2
+        types = {r.type for r in rels}
+        assert types == {"RELATED", "ABOUT"}
+
+    @pytest.mark.asyncio
+    async def test_list_relationships_deduplicates(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        n1 = GraphNode(id="n1", label="Entity", properties={"name": "A"})
+        n2 = GraphNode(id="n2", label="Entity", properties={"name": "B"})
+        await store.merge_node(n1, "run-1")
+        await store.merge_node(n2, "run-1")
+        r1 = GraphRelationship(source_id="n1", target_id="n2", type="RELATED", properties={"v": 1})
+        r1_update = GraphRelationship(source_id="n1", target_id="n2", type="RELATED", properties={"v": 2})
+        await store.merge_relationship(r1, "run-1")
+        await store.merge_relationship(r1_update, "run-2")
+        rels = await store.list_relationships()
+        assert len(rels) == 1
+        assert rels[0].properties["v"] == 2
+
+
 class TestInMemoryGraphStoreProtocol:
     def test_satisfies_graph_store_protocol(self):
         from graphrag_core.graph.memory import InMemoryGraphStore

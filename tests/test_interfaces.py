@@ -132,6 +132,9 @@ class TestGraphStoreProtocol:
             async def count_relationships(self) -> int:
                 raise NotImplementedError
 
+            async def list_relationships(self) -> list[GraphRelationship]:
+                return []
+
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
 

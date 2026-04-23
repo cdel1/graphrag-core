@@ -191,6 +191,28 @@ class Neo4jGraphStore:
             record = await result.single()
             return record["cnt"] if record else 0
 
+    async def list_relationships(self) -> list[GraphRelationship]:
+        query = (
+            "MATCH (a)-[r]->(b) "
+            "RETURN a.id AS source_id, type(r) AS rel_type, b.id AS target_id, "
+            "properties(r) AS props"
+        )
+        async with self._driver.session(database=self._database) as session:
+            result = await session.run(query)
+            records = [record async for record in result]
+        return [
+            GraphRelationship(
+                source_id=rec["source_id"],
+                target_id=rec["target_id"],
+                type=rec["rel_type"],
+                properties={
+                    k: v for k, v in (rec["props"] or {}).items()
+                    if not k.startswith("_")
+                },
+            )
+            for rec in records
+        ]
+
     async def validate_schema(self) -> list[SchemaViolation]:
         violations: list[SchemaViolation] = []
         return violations

@@ -153,6 +153,8 @@ class GraphStore(Protocol):
 
     async def count_relationships(self) -> int: ...
 
+    async def list_relationships(self) -> list[GraphRelationship]: ...
+
 
 # ---------------------------------------------------------------------------
 # BB4: Hybrid Search
