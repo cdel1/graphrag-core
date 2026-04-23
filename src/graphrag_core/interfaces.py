@@ -12,6 +12,7 @@ from graphrag_core.models import (
     ApprovalBatch,
     AuditTrail,
     ChunkConfig,
+    Community,
     CurationIssue,
     DocumentChunk,
     ExtractionResult,
@@ -154,6 +155,13 @@ class GraphStore(Protocol):
     async def count_relationships(self) -> int: ...
 
     async def list_relationships(self) -> list[GraphRelationship]: ...
+
+
+@runtime_checkable
+class CommunityDetector(Protocol):
+    """Detects communities in a knowledge graph."""
+
+    async def detect(self, graph_store: GraphStore) -> list[Community]: ...
 
 
 # ---------------------------------------------------------------------------

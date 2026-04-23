@@ -305,3 +305,16 @@ class TestExtractionPostProcessorProtocol:
 
         processor: ExtractionPostProcessor = MyPostProcessor()
         assert isinstance(processor, ExtractionPostProcessor)
+
+
+class TestCommunityDetectorProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        from graphrag_core.interfaces import CommunityDetector, GraphStore
+        from graphrag_core.models import Community
+
+        class MyDetector:
+            async def detect(self, graph_store: GraphStore) -> list[Community]:
+                return []
+
+        detector = MyDetector()
+        assert isinstance(detector, CommunityDetector)
