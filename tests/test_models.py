@@ -4,6 +4,7 @@ from graphrag_core.models import (
     AuditTrail,
     ChunkConfig,
     ChunkExtractionResult,
+    Community,
     DocumentChunk,
     DocumentMetadata,
     ExtractionResult,
@@ -249,3 +250,39 @@ class TestChunkExtractionResult:
         result = ChunkExtractionResult(nodes=[], relationships=[])
         assert result.nodes == []
         assert result.relationships == []
+
+
+class TestCommunityModel:
+    def test_community_basic(self):
+        comm = Community(id="comm-1", node_ids=["n1", "n2", "n3"], size=3)
+        assert comm.id == "comm-1"
+        assert comm.node_ids == ["n1", "n2", "n3"]
+        assert comm.size == 3
+        assert comm.modularity_score is None
+        assert comm.metadata == {}
+
+    def test_community_with_score(self):
+        comm = Community(
+            id="comm-2",
+            node_ids=["n4", "n5"],
+            size=2,
+            modularity_score=0.75,
+            metadata={"level": 0},
+        )
+        assert comm.modularity_score == 0.75
+        assert comm.metadata == {"level": 0}
+
+    def test_community_serialization(self):
+        comm = Community(
+            id="comm-3",
+            node_ids=["n6", "n7"],
+            size=2,
+            modularity_score=0.5,
+            metadata={"level": 1},
+        )
+        data = comm.model_dump()
+        restored = Community.model_validate(data)
+        assert restored.id == comm.id
+        assert restored.node_ids == comm.node_ids
+        assert restored.modularity_score == comm.modularity_score
+        assert restored.metadata == comm.metadata
