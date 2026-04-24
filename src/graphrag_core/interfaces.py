@@ -12,6 +12,7 @@ from graphrag_core.models import (
     ApprovalBatch,
     AuditTrail,
     ChunkConfig,
+    Community,
     CurationIssue,
     DocumentChunk,
     ExtractionResult,
@@ -114,7 +115,7 @@ class ExtractionPromptBuilder(Protocol):
 
 @runtime_checkable
 class ExtractionPostProcessor(Protocol):
-    """Optional post-processing between extraction and storage."""
+    """Transforms an ExtractionResult before it is written to the graph store."""
 
     async def process(
         self,
@@ -152,6 +153,15 @@ class GraphStore(Protocol):
     async def list_nodes(self) -> list[GraphNode]: ...
 
     async def count_relationships(self) -> int: ...
+
+    async def list_relationships(self) -> list[GraphRelationship]: ...
+
+
+@runtime_checkable
+class CommunityDetector(Protocol):
+    """Detects communities in a knowledge graph."""
+
+    async def detect(self, graph_store: GraphStore) -> list[Community]: ...
 
 
 # ---------------------------------------------------------------------------

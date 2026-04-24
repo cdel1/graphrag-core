@@ -6,6 +6,7 @@ from graphrag_core.interfaces import (
     Agent,
     ApprovalGateway,
     Chunker,
+    CommunityDetector,
     DetectionLayer,
     DocumentParser,
     EmbeddingModel,
@@ -39,6 +40,7 @@ from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
     AgentResult,
     ChunkExtractionResult,
+    Community,
     CurationIssue,
     CurationReport,
     DocumentChunk,
@@ -64,6 +66,7 @@ __all__ = [
     "Agent",
     "ApprovalGateway",
     "Chunker",
+    "CommunityDetector",
     "DetectionLayer",
     "DocumentParser",
     "EmbeddingModel",
@@ -108,6 +111,7 @@ __all__ = [
     # Models
     "AgentResult",
     "ChunkExtractionResult",
+    "Community",
     "CurationIssue",
     "CurationReport",
     "DocumentChunk",

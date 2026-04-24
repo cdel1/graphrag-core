@@ -11,6 +11,7 @@ from graphrag_core.interfaces import (
     EmbeddingModel,
     EntityRegistry,
     ExtractionEngine,
+    ExtractionPostProcessor,
     GraphStore,
     LLMClient,
     LLMCurationLayer,
@@ -130,6 +131,9 @@ class TestGraphStoreProtocol:
 
             async def count_relationships(self) -> int:
                 raise NotImplementedError
+
+            async def list_relationships(self) -> list[GraphRelationship]:
+                return []
 
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
@@ -287,3 +291,30 @@ class TestReportRendererProtocol:
 
         renderer: ReportRenderer = MyRenderer()
         assert isinstance(renderer, ReportRenderer)
+
+
+class TestExtractionPostProcessorProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        class MyPostProcessor:
+            async def process(
+                self,
+                result: ExtractionResult,
+                existing_entities: list[GraphNode] | None = None,
+            ) -> ExtractionResult:
+                raise NotImplementedError
+
+        processor: ExtractionPostProcessor = MyPostProcessor()
+        assert isinstance(processor, ExtractionPostProcessor)
+
+
+class TestCommunityDetectorProtocol:
+    def test_concrete_class_satisfies_protocol(self):
+        from graphrag_core.interfaces import CommunityDetector, GraphStore
+        from graphrag_core.models import Community
+
+        class MyDetector:
+            async def detect(self, graph_store: GraphStore) -> list[Community]:
+                return []
+
+        detector = MyDetector()
+        assert isinstance(detector, CommunityDetector)

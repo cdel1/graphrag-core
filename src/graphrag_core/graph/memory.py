@@ -94,6 +94,9 @@ class InMemoryGraphStore:
     async def count_relationships(self) -> int:
         return len(self._relationships)
 
+    async def list_relationships(self) -> list[GraphRelationship]:
+        return list(self._relationships)
+
     async def validate_schema(self) -> list[SchemaViolation]:
         if self._schema is None:
             return []

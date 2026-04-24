@@ -148,6 +148,16 @@ class SchemaViolation(BaseModel):
     message: str
 
 
+class Community(BaseModel):
+    """A group of related nodes discovered by community detection."""
+
+    id: str
+    node_ids: list[str]
+    size: int
+    modularity_score: float | None = None
+    metadata: dict[str, Any] = {}
+
+
 # ---------------------------------------------------------------------------
 # BB4: Hybrid Search
 # ---------------------------------------------------------------------------
