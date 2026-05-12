@@ -189,3 +189,7 @@ htmlcov/
 
 # graphify
 graphify-out/
+
+# contextplus MCP — kept local in public repo (don't disclose dev tooling); index never committed
+.mcp.json
+.mcp_data/
