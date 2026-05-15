@@ -12,18 +12,20 @@ Domain-specific logic (construction monitoring, due diligence, compliance) lives
 Test: Could a team building a legal compliance graph use this code without modification? If no → it doesn't belong here.
 
 ## Architecture
-8 building blocks, each with an abstract interface (Protocol) and default implementation:
+8 building blocks, each with an abstract interface (Protocol). Some have default implementations shipped; some are Protocol-only (see interface spec for current shipping state).
 
-| # | Block | Interface | Default Impl |
+| # | Block | Interface | Shipping status (2026-05-15) |
 |---|---|---|---|
-| 1 | Document Ingestion | `DocumentParser`, `Chunker`, `IngestionPipeline` | PDF/DOCX parsers, semantic chunker |
-| 2 | Entity Extraction | `ExtractionEngine`, `OntologySchema` | LLM-based extraction |
-| 3 | Knowledge Graph | `GraphStore` | `Neo4jGraphStore` |
-| 4 | Hybrid Search | `SearchEngine` | `Neo4jHybridSearch` |
-| 5 | Governed Curation | `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway` | GDS detection, CLI approval |
-| 6 | Entity Registry | `EntityRegistry` | Neo4j-backed registry |
-| 7 | Core Tool Library | `ToolLibrary`, `Tool` | 8 core tools |
-| 8 | Orchestration | `Orchestrator`, `ReportRenderer` | LangGraph, DOCX renderer |
+| 1 | Document Ingestion | `DocumentParser`, `Chunker`, `IngestionPipeline`, `EmbeddingModel` | PDF/DOCX/MD/Text parsers + token chunker shipped; `EmbeddingModel` is Protocol-only (no default impl yet) |
+| 2 | Entity Extraction | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` | `LLMExtractionEngine` + `DefaultPromptBuilder` shipped; `ExtractionPostProcessor` Protocol shipped (default impl is domain concern, lives in Lacuna) |
+| 3 | Knowledge Graph | `GraphStore`, `CommunityDetector` | `Neo4jGraphStore` + `MemoryGraphStore` shipped; `CommunityDetector` Protocol shipped, default impl in Lacuna (`LeidenCommunityDetector` via graspologic) |
+| 4 | Hybrid Search | `SearchEngine` | `Neo4jHybridSearch` + `MemorySearch` shipped |
+| 5 | Governed Curation | `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway` | **Partial:** Protocols shipped; `GDSDetectionLayer` / `CLIApprovalGateway` named in v0.1.0 spec, not yet implemented |
+| 6 | Entity Registry | `EntityRegistry` | `MemoryEntityRegistry` shipped (in-memory only; Neo4j-backed registry deferred) |
+| 7 | Core Tool Library | `ToolLibrary`, `Tool` | **Partial:** 4 of 8 tools shipped (`get_entity`, `search_entities`, `get_audit_trail`, `get_related`); 4 temporal tools (`get_entity_history`, `compare_periods`, `find_trend`, `find_unaddressed_topics`) currently in Lacuna, scheduled for push-down before next PyPI release |
+| 8 | Orchestration | `Orchestrator`, `Agent`, `ReportRenderer` | `SequentialOrchestrator` + `Agent` Protocol shipped; LangGraph orchestrator and DocxRenderer named in v0.1.0 spec, not yet implemented |
+
+Test count: **228** (`uv run pytest --collect-only -q` as of 2026-05-15). Earlier "182 tests" claim in v0.2.0 PyPI release notes is now stale.
 
 ## Tech Stack
 - Python 3.12+
@@ -95,3 +97,9 @@ python -m graphrag_core.graph.schema   # apply schema
 - Published to PyPI as `graphrag-core`
 - CHANGELOG.md tracks all changes
 - First public commit establishes prior art before any organizational use
+
+### Next release blockers (per audit decision E1, 2026-05-15)
+
+Before the next PyPI version bump, complete the BB7 push-down: move `get_entity_history`, `compare_periods`, `find_trend`, `find_unaddressed_topics` from `lacuna/intelligence/temporal.py` + `intelligence/curation.py` into `graphrag_core/tools/`. These are domain-agnostic (any L2 consumer with period-tagged claims benefits). Rename `compare_quarters → compare_periods` in the interface spec (generalization). Update interface spec v0.2.0 default-implementations table accordingly.
+
+Optional same-release: implement minimal `MemoryEmbeddingModel` for testing if no default lands; flag `ApprovalGateway` / `ReportRenderer` Protocol-only status in CHANGELOG.
