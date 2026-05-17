@@ -4,7 +4,7 @@
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 244–268
 **Default implementations:** [`SequentialOrchestrator`](orchestrator.py), [`AgentContext`](context.py). `ReportRenderer` is **Protocol-only** (no default impl shipped; v0.1.0 named `DocxRenderer` but not yet implemented).
 **Vocabulary:** `Agent`, `Orchestrator`, `AgentResult`, `WorkflowResult`, `ReportData`, `RenderConfig` — see `tessera/CONTEXT.md`
-**Important:** the v1.0 architecture spec's autonomous multi-agent workflow (Orchestrator/Analysis/Perspective/Report/Recommendation/QA Agents) was **superseded** by the TfT human-orchestrator model in `2026-05-01-lacuna-human-interface-design.md`. These Protocols remain in graphrag-core as a building block for future agent-orchestrated adapters (Phase 9+, see `2026-05-15-agentic-substrate-design.md`).
+**Important:** the v1.0 architecture spec's autonomous multi-agent workflow (six named agents driving Detect → Diagnose → Decide → Draft → Deliver) was **superseded** by the TfT human-orchestrator model in `2026-05-01-lacuna-human-interface-design.md`. These Protocols remain in graphrag-core as a building block for future agent-orchestrated adapters (Phase 9+, see `2026-05-15-agentic-substrate-design.md`). The original agent names are domain-vocabulary and have been retired from this Layer-1 doc; they live in the superseded section of the architecture spec and in `tessera/CONTEXT.md` as deprecated terms.
 
 ---
 
