@@ -1,8 +1,8 @@
 # graphrag-core — Interface Specification
 
-**Version:** 0.1.0
+**Version:** 0.2.0-spec (revised 2026-05-15)
 **License:** MIT
-**Status:** Draft
+**Status:** Draft — revised to reflect BB7 4-of-8 split and pending push-down (audit decision E1)
 
 > A domain-agnostic framework for building governed, auditable Knowledge Graphs from documents using LLM-powered extraction, provenance-native storage, and multi-agent orchestration.
 
@@ -320,20 +320,29 @@ class ToolLibrary:
     def list_tools(self) -> list[Tool]: ...
     async def execute(self, name: str, **kwargs) -> ToolResult: ...
 
-# Core tools shipped with graphrag-core:
-CORE_TOOLS = [
-    "get_entity",             # (entity_type, entity_id) → Entity
-    "search_entities",        # (entity_type, query, top_k) → list[Entity]
+# Core tools — current shipping state (as of 2026-05-15):
+CORE_TOOLS_SHIPPED = [
+    "get_entity",             # (entity_id) → Node
+    "search_entities",        # (query, node_types, top_k) → list[SearchResult]
     "get_audit_trail",        # (node_id) → AuditTrail
-    "get_related",            # (node_id, rel_type, depth) → Subgraph
-    "get_entity_history",     # (entity_id, from_q, to_q) → Evolution
-    "compare_quarters",       # (topic_id, q1, q2) → Diff
-    "find_unaddressed_topics",# (quarter) → list[Topic]
-    "find_trend",             # (topic_id) → TrendVector
+    "get_related",             # (node_id, rel_type, depth) → list[Node]
+]
+
+# Temporal tools — currently implemented in Lacuna (Layer 2);
+# scheduled for push-down to graphrag-core BB7 before the next PyPI release
+# (audit decision E1). Naming may differ slightly post-push-down
+# (e.g. `compare_periods` is more general than `compare_quarters`).
+CORE_TOOLS_PENDING_PUSHDOWN = [
+    "get_entity_history",     # (entity_id, from_period, to_period) → EntityHistory
+    "compare_periods",        # (topic_id, period_from, period_to) → PeriodDiff
+    "find_unaddressed_topics",# (period) → list[Topic]
+    "find_trend",             # (topic_id) → TrendSignal
 ]
 ```
 
-Domain-specific tools (e.g. `find_divergent_topics`, `generate_report_section`) are registered by the Layer 2 application, not by graphrag-core.
+The 8-tool framing was the v0.1.0 spec target. Current shipping state: 4 generic core tools in graphrag-core; 4 temporal tools in Lacuna pending push-down. The temporal tools are domain-agnostic (any Layer 2 consumer with period-tagged claims benefits) and pass the Push-Down Rule; the push-down is scheduled before the next graphrag-core PyPI release.
+
+Domain-specific tools (e.g. `find_divergent_topics`, `generate_report_section`, `generate_executive_summary`, `apply_lens`, scope-overlay tools) are registered by the Layer 2 application and stay in Lacuna.
 
 ---
 
@@ -432,18 +441,26 @@ pipeline = IngestionPipeline(
 
 ## Default Implementations
 
-graphrag-core ships with production-ready defaults:
+graphrag-core ships with production-ready defaults. **Honest current state (2026-05-15):**
 
-| Interface | Default Implementation | Package |
-|---|---|---|
-| `GraphStore` | `Neo4jGraphStore` | `graphrag-core` |
-| `ExtractionEngine` | `LLMExtractionEngine` | `graphrag-core` |
-| `SearchEngine` | `Neo4jHybridSearch` | `graphrag-core` |
-| `EmbeddingModel` | `NomicEmbedding` | `graphrag-core` |
-| `DetectionLayer` | `GDSDetectionLayer` (WCC, Node Similarity) | `graphrag-core` |
-| `Orchestrator` | `LangGraphOrchestrator` | `graphrag-core[langgraph]` |
-| `ReportRenderer` | `DocxRenderer` | `graphrag-core[docx]` |
-| `ApprovalGateway` | `CLIApprovalGateway` | `graphrag-core` |
+| Interface | Default Implementation | Package | Shipping status |
+|---|---|---|---|
+| `GraphStore` | `Neo4jGraphStore` (+ `MemoryGraphStore` for tests) | `graphrag-core` | Shipped |
+| `ExtractionEngine` | `LLMExtractionEngine` | `graphrag-core` | Shipped |
+| `ExtractionPromptBuilder` | `DefaultPromptBuilder` | `graphrag-core` | Shipped |
+| `ExtractionPostProcessor` (Protocol only) | n/a | `graphrag-core` | Protocol shipped; default impl is domain concern |
+| `SearchEngine` | `Neo4jHybridSearch` (+ `MemorySearch` for tests) | `graphrag-core` | Shipped |
+| `EmbeddingModel` (Protocol only) | n/a (named `NomicEmbedding` in v0.1.0 spec; not yet implemented) | — | **Protocol only** |
+| `DetectionLayer` | `GDSDetectionLayer` named in v0.1.0 spec; **not yet implemented** — only Protocol ships | `graphrag-core` | **Protocol only** |
+| `LLMCurationLayer` (Protocol only) | n/a | `graphrag-core` | Protocol only |
+| `ApprovalGateway` (Protocol only) | named `CLIApprovalGateway` in v0.1.0 spec; **not yet implemented** | — | **Protocol only** |
+| `EntityRegistry` | `MemoryEntityRegistry` | `graphrag-core` | Shipped (in-memory; no Neo4j-backed registry yet) |
+| `ToolLibrary` | `ToolLibrary` + 4 core tools (see above) | `graphrag-core` | Shipped (partial — 4 of 8 tools) |
+| `Orchestrator` | `SequentialOrchestrator` (LangGraph variant promised, not yet implemented) | `graphrag-core` | Sequential shipped |
+| `ReportRenderer` (Protocol only) | named `DocxRenderer` in v0.1.0 spec; **not yet implemented** | — | **Protocol only** |
+| `CommunityDetector` (Protocol only) | implemented in Lacuna (`LeidenCommunityDetector` via graspologic) | Lacuna L2 | Protocol shipped; default impl in Lacuna |
+
+**v0.2.0 spec correction:** v0.1.0 listed default implementations that were aspirational. v0.2.0 spec separates "Protocol shipped" from "default impl shipped." Several Protocols (`EmbeddingModel`, `DetectionLayer`, `ApprovalGateway`, `ReportRenderer`) ship as interfaces but have no default implementation in graphrag-core yet — consumers must supply their own or implement against the Protocol. Default implementations land as needed by Lacuna pilot deployment and Phase 6 BB7 expansion.
 
 ---
 
