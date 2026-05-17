@@ -48,16 +48,31 @@ Test count: **228** (`uv run pytest --collect-only -q` as of 2026-05-15). Earlie
 src/graphrag_core/
 ├── interfaces.py       # ALL Protocol definitions
 ├── models.py           # ALL Pydantic models
-├── ingestion/          # BB1: Parse, chunk, embed, store
-├── extraction/         # BB2: Schema-guided entity extraction
-├── graph/              # BB3: GraphStore + Neo4j default
-├── search/             # BB4: Hybrid search
-├── curation/           # BB5: 3-layer governance
-├── registry/           # BB6: Known entity dedup
-├── tools/              # BB7: Core tool library (semantic layer)
-├── agents/             # BB8: Orchestration + report rendering
-└── report/             # BB8: Report renderer
+├── ingestion/          # BB1: Parse, chunk, embed, store      | + INTERFACE.md
+├── extraction/         # BB2: Schema-guided entity extraction | + INTERFACE.md
+├── graph/              # BB3: GraphStore + Neo4j default       | + INTERFACE.md
+├── search/              # BB4: Hybrid search                   | + INTERFACE.md
+├── curation/           # BB5: 3-layer governance              | + INTERFACE.md
+├── registry/           # BB6: Known entity dedup              | + INTERFACE.md
+├── tools/              # BB7: Core tool library (semantic)    | + INTERFACE.md
+├── llm/                # BB1 supporting: LLMClient            | + INTERFACE.md
+└── agents/             # BB8: Orchestration + ReportRenderer  | + INTERFACE.md
 ```
+
+## Per-Package Interface Documentation
+
+Each package directory contains an `INTERFACE.md` documenting:
+- Which Protocols live in that package and their signatures
+- Contracts (idempotency, atomicity, determinism)
+- Error modes (what raises, what returns falsy, what propagates)
+- Performance invariants (O(n) characteristics, hot-path warnings)
+- Reference implementations and their trade-offs
+- Implementation skeleton for adding a new backend
+- Test checklist
+
+These docs were added 2026-05-17 per audit Action 3 (interface clarity for agents implementing or debugging a Protocol — a Protocol on its own only documents method signatures, not contracts).
+
+When implementing a new Protocol backend (e.g., a new `GraphStore`, a new `LLMClient`), start with the package's `INTERFACE.md`. When adding a new Protocol, update the package `INTERFACE.md` in the same commit.
 
 ## Extension Pattern
 Domain layers extend graphrag-core by:
