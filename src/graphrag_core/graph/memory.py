@@ -20,6 +20,7 @@ class InMemoryGraphStore:
         self._relationships: list[GraphRelationship] = []
         self._provenance: dict[str, list[str]] = {}  # node_id -> [chunk_ids]
         self._schema: OntologySchema | None = None
+        self._chunk_to_doc: dict[str, str] = {}  # chunk_id -> doc_id
 
     async def merge_node(self, node: GraphNode, import_run_id: str) -> str:
         existing = self._nodes.get(node.id)
@@ -38,8 +39,12 @@ class InMemoryGraphStore:
                 and existing.type == rel.type
             ):
                 self._relationships[i] = rel
+                if rel.type == "CHUNKED_FROM":
+                    self._chunk_to_doc[rel.source_id] = rel.target_id
                 return f"{rel.source_id}-{rel.type}-{rel.target_id}"
         self._relationships.append(rel)
+        if rel.type == "CHUNKED_FROM":
+            self._chunk_to_doc[rel.source_id] = rel.target_id
         return f"{rel.source_id}-{rel.type}-{rel.target_id}"
 
     async def record_provenance(self, node_id: str, chunk_id: str, import_run_id: str) -> None:
@@ -56,8 +61,15 @@ class InMemoryGraphStore:
         node = self._nodes.get(node_id)
         if node:
             chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": node.label}))
+        seen_docs: set[str] = set()
         for chunk_id in self._provenance.get(node_id, []):
             chain.append(ProvenanceStep(level="chunk", id=chunk_id, metadata={}))
+            doc_id = self._chunk_to_doc.get(chunk_id)
+            if doc_id and doc_id not in seen_docs:
+                doc_node = self._nodes.get(doc_id)
+                metadata = dict(doc_node.properties) if doc_node else {}
+                chain.append(ProvenanceStep(level="document", id=doc_id, metadata=metadata))
+                seen_docs.add(doc_id)
         return AuditTrail(node_id=node_id, provenance_chain=chain)
 
     async def get_related(

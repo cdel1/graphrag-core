@@ -1,10 +1,13 @@
-"""BB3: Neo4j-backed GraphStore implementation."""
+"""BB3: Neo4j-backed GraphStore implementation.
+
+The ``neo4j`` Python driver is an optional dependency (install via
+``pip install graphrag-core[neo4j]``). It is imported lazily inside
+``__init__`` so consumers who only use InMemoryGraphStore don't need it.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-
-from neo4j import AsyncGraphDatabase
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.models import (
@@ -15,6 +18,8 @@ from graphrag_core.models import (
     ProvenanceStep,
     SchemaViolation,
 )
+# Note: `from neo4j import AsyncGraphDatabase` is intentionally NOT here.
+# See Neo4jGraphStore.__init__ below.
 
 
 class Neo4jGraphStore:
@@ -26,6 +31,13 @@ class Neo4jGraphStore:
         auth: tuple[str, str] = ("neo4j", "development"),
         database: str = "neo4j",
     ) -> None:
+        try:
+            from neo4j import AsyncGraphDatabase
+        except ImportError as e:
+            raise ImportError(
+                "Neo4jGraphStore requires the 'neo4j' extra. "
+                "Install with: pip install graphrag-core[neo4j]"
+            ) from e
         self._driver = AsyncGraphDatabase.driver(uri, auth=auth)
         self._database = database
 
@@ -105,7 +117,10 @@ class Neo4jGraphStore:
         query = (
             "MATCH (n {id: $id}) "
             "OPTIONAL MATCH (c:Chunk)-[:SOURCED]->(n) "
-            "RETURN n, labels(n) AS labels, collect(c.id) AS chunk_ids"
+            "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
+            "RETURN n, labels(n) AS node_labels, "
+            "       collect(DISTINCT c.id) AS chunk_ids, "
+            "       collect(DISTINCT CASE WHEN d IS NOT NULL THEN {id: d.id, props: properties(d)} END) AS docs"
         )
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query, id=node_id)
@@ -113,12 +128,19 @@ class Neo4jGraphStore:
 
             chain: list[ProvenanceStep] = []
             if record and record["n"]:
-                labels = [l for l in record["labels"] if l != "Chunk"]
+                labels = [l for l in record["node_labels"] if l != "Chunk"]
                 label = labels[0] if labels else "Unknown"
                 chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": label}))
                 for chunk_id in record["chunk_ids"]:
                     if chunk_id:
                         chain.append(ProvenanceStep(level="chunk", id=chunk_id, metadata={}))
+                seen: set[str] = set()
+                for doc in record["docs"]:
+                    if not doc.get("id") or doc["id"] in seen:
+                        continue
+                    chain.append(ProvenanceStep(level="document", id=doc["id"],
+                                                metadata=doc["props"]))
+                    seen.add(doc["id"])
 
             return AuditTrail(node_id=node_id, provenance_chain=chain)
 
@@ -154,6 +176,10 @@ class Neo4jGraphStore:
 
     async def apply_schema(self, schema: OntologySchema) -> None:
         async with self._driver.session(database=self._database) as session:
+            await session.run(
+                "CREATE CONSTRAINT document_id_unique IF NOT EXISTS "
+                "FOR (d:Document) REQUIRE d.id IS UNIQUE"
+            )
             for nt in schema.node_types:
                 validate_identifier(nt.label, "node label")
                 constraint_query = (

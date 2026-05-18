@@ -2,7 +2,7 @@
 
 **Classes:** `Tool`, `ToolLibrary` (data classes, not Protocols — but the *registration / invocation contract* is the interface here)
 **Source:** [`graphrag_core/tools/library.py`](library.py), [`graphrag_core/tools/core_tools.py`](core_tools.py)
-**Default implementations:** 4 of 8 core tools ship (`get_entity`, `search_entities`, `get_audit_trail`, `get_related`). 4 temporal tools (`get_entity_history`, `compare_periods`, `find_trend`, `find_unaddressed_topics`) live in Lacuna pending push-down (audit decision E1, before next PyPI release).
+**Default implementations:** 4 of 7 core tools ship (`get_entity`, `search_entities`, `get_audit_trail`, `get_related`). 3 temporal tools (`get_node_history`, `compare_periods`, `find_trend`) push down from Lacuna into graphrag-core BB7 in v0.6.0 (audit decision E1, scope-revised 2026-05-17 — see `tessera/docs/adr/0001-audit-trail-reaches-document-level.md`).
 **Vocabulary:** `Tool`, `ToolParameter`, `ToolResult` — see `tessera/CONTEXT.md`
 
 ---
@@ -84,23 +84,28 @@ Registered by `register_core_tools(library, graph_store, search_engine)`:
 | `get_audit_trail` | `node_id: string` | AuditTrail dump |
 | `get_related` | `node_id: string`, `rel_type: string` (optional), `depth: int` (optional) | List of node dumps |
 
-## Pending push-down from Lacuna (audit E1)
+## Pending push-down from Lacuna (audit E1, scope-revised 2026-05-17)
 
-Currently in `lacuna/intelligence/temporal.py` and `lacuna/intelligence/curation.py`; scheduled to move into graphrag-core BB7 before the next PyPI release:
+Three temporal tools push down to graphrag-core BB7 in v0.6.0. They consume the document-level audit trail (`get_audit_trail(node_id) → AuditTrail` with `level="document"` steps) for period resolution — no Lacuna-specific labels or edge names are hardcoded in graphrag-core. Implementation: new file `core_tools_temporal.py`, registered via `register_temporal_tools(library, graph_store)`.
 
-| Name (Lacuna) | Push-down name (graphrag-core target) |
-|---|---|
-| `get_entity_history` | `get_entity_history` |
-| `compare_periods` | `compare_periods` (renamed from spec's `compare_quarters` — generalization) |
-| `find_trend` | `find_trend` |
-| `find_unaddressed_topics` | `find_unaddressed_topics` |
+| Name (graphrag-core v0.6.0) | Parameters | Returns | Lacuna origin |
+|---|---|---|---|
+| `get_node_history` | `node_id: string`, `rel_type: string?`, `from_period: string?`, `to_period: string?` | `dict[period → list[GraphNode]]` of the node's neighbors grouped by their resolved period | `lacuna/intelligence/temporal.get_entity_history` — renamed; `Entity` is a Lacuna Tier-1 label, graphrag-core operates on `GraphNode` |
+| `compare_periods` | `node_id: string`, `period_from: string`, `period_to: string`, `rel_type: string?` | `PeriodDiff(added, removed)` — set-diff of neighbors by resolved period | `lacuna/intelligence/temporal.compare_periods` — already named correctly per audit's `compare_quarters → compare_periods` rename |
+| `find_trend` | `node_id: string`, `rel_type: string?` | `TrendSignal(direction, claim_counts, periods_analyzed)` | `lacuna/intelligence/temporal.find_trend` |
 
-When the push-down lands, this section becomes "Core tools (full set)" and the temporal-tool definitions move into a new `core_tools_temporal.py`.
+The optional `rel_type` kwarg follows the existing BB7 pattern in `make_get_related_tool`. Domain consumers wanting "Claim-only history" pass `rel_type="ABOUT"` at the call site — the label name lives at Lacuna's call site, never in Layer 1.
+
+### Lacuna-side aftermath
+
+- `lacuna/intelligence/temporal.py` shrinks to a deprecation shim re-exporting the graphrag-core tools for one release, then deletes.
+- `lacuna/intelligence/curation.py::find_unaddressed_topics` **stays in Lacuna** (originally part of audit E1; descoped 2026-05-17). It references `Topic` (Tier 3, human-curated) and `HAS_RECOMMENDATION` (Lacuna edge) — not domain-agnostic by the push-down test.
 
 ## Domain tools (Lacuna-only, stay in Layer 2)
 
 | Name | Where | Notes |
 |---|---|---|
+| `find_unaddressed_topics` | `lacuna/intelligence/curation.py` | References Tier-3 `Topic` and Lacuna `HAS_RECOMMENDATION` edge — stays in Lacuna per 2026-05-17 scope revision |
 | `find_divergent_topics` | `lacuna/intelligence/curation.py` | Requires ASSERTS/SOURCED_FROM semantics — domain-specific |
 | `generate_report_section` | `lacuna/report/lifecycle.py` | Calls `GenerationLLM`; domain templating |
 | `generate_executive_summary` | `lacuna/report/lifecycle.py` | Same |
@@ -143,3 +148,9 @@ library.register(make_my_tool(some_dep))
 - `execute("known_name", **missing_required)` → `ToolResult(success=False, error="missing required parameter: ...")`.
 - Handler exception → caught, wrapped as `ToolResult(success=False, error=...)`. Never propagated.
 - `data` is JSON-serializable (round-trip through `json.dumps` succeeds).
+- `register_temporal_tools(library, gs)` registers exactly three tools: `get_node_history`, `compare_periods`, `find_trend`.
+- `get_node_history` groups a node's neighbors by their resolved source-document period.
+- `compare_periods` returns `PeriodDiff(added, removed)` set-diff of neighbors between two periods.
+- `find_trend` returns direction `∈ {"increasing", "decreasing", "stable", "insufficient_data"}` based on first-vs-last period neighbor counts.
+- All BB7 temporal-tool handlers are exception-safe: internal errors are wrapped as `ToolResult(success=False, error=...)` instead of propagated.
+- Missing-node case: temporal tools return `ToolResult(success=True, data={periods: {}})` or equivalent empty result — they do not raise.
