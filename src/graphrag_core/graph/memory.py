@@ -20,6 +20,7 @@ class InMemoryGraphStore:
         self._relationships: list[GraphRelationship] = []
         self._provenance: dict[str, list[str]] = {}  # node_id -> [chunk_ids]
         self._schema: OntologySchema | None = None
+        self._chunk_to_doc: dict[str, str] = {}  # chunk_id -> doc_id
 
     async def merge_node(self, node: GraphNode, import_run_id: str) -> str:
         existing = self._nodes.get(node.id)
@@ -40,6 +41,8 @@ class InMemoryGraphStore:
                 self._relationships[i] = rel
                 return f"{rel.source_id}-{rel.type}-{rel.target_id}"
         self._relationships.append(rel)
+        if rel.type == "CHUNKED_FROM":
+            self._chunk_to_doc[rel.source_id] = rel.target_id
         return f"{rel.source_id}-{rel.type}-{rel.target_id}"
 
     async def record_provenance(self, node_id: str, chunk_id: str, import_run_id: str) -> None:
