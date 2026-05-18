@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.1] — 2026-05-18
+
+### Fixed
+
+- **BB1 — `IngestionPipeline.ingest` now merges `:Chunk` nodes before merging `CHUNKED_FROM` edges.** v0.6.0 wrote the `CHUNKED_FROM` edge from each chunk to the new `:Document` node but never created the chunk node first. `InMemoryGraphStore.merge_relationship` is permissive (just appends to a list) so v0.6.0 tests passed on Memory, but `Neo4jGraphStore.merge_relationship` does `MATCH (a {id: $source_id}), (b {id: $target_id})` — when the chunk node didn't exist, the MATCH returned no record and the caller hit `TypeError: 'NoneType' object is not subscriptable`. End-to-end ingest against a live Neo4j was broken in v0.6.0.
+- Chunk nodes now carry `text`, `page`, `position`, and `chunk_type` properties when present on the source `DocumentChunk`.
+
+### Tests added
+
+- `test_ingest_creates_chunk_nodes_before_chunked_from_edges` — Memory-side regression catching the chunk-node count vs. chunk-list mismatch.
+- `test_neo4j_ingest_creates_chunk_nodes_and_chunked_from` — Neo4j-side integration regression. Reproduces the v0.6.0 failure mode (would raise `TypeError` without the fix) and verifies the `MATCH (c:Chunk)-[:CHUNKED_FROM]->(d:Document)` Cypher returns the expected counts.
+
 ## [0.6.0] — 2026-05-18
 
 ### Added
