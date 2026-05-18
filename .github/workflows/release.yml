@@ -21,6 +21,45 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Verify versions match (tag, pyproject.toml, __version__)
+        # Prevents the v0.6.0/v0.6.1 metadata-mismatch class of bug: a tag
+        # gets pushed before all three version sources are bumped, and the
+        # workflow happily publishes a wheel labeled with whatever stale
+        # version sits in pyproject.toml. Fails the run with a clear error
+        # if anything drifts. See graphrag-core CHANGELOG v0.6.1 retrospective.
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PYPROJECT_VERSION=$(uv run python <<'PYEOF'
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data['project']['version'])
+          PYEOF
+          )
+          INIT_VERSION=$(uv run python <<'PYEOF'
+          src = open('src/graphrag_core/__init__.py').read()
+          for line in src.splitlines():
+              if line.startswith('__version__'):
+                  rhs = line.split('=', 1)[1].strip()
+                  print(rhs.strip('"').strip("'"))
+                  break
+          else:
+              raise SystemExit('no __version__ found in src/graphrag_core/__init__.py')
+          PYEOF
+          )
+
+          echo "Tag (sans 'v'):     $TAG"
+          echo "pyproject.toml:     $PYPROJECT_VERSION"
+          echo "__init__.py:        $INIT_VERSION"
+
+          if [ "$TAG" != "$PYPROJECT_VERSION" ] || [ "$TAG" != "$INIT_VERSION" ]; then
+            echo "::error::Version mismatch — refusing to publish."
+            echo "::error::All three must match. Fix locally, re-tag, re-push."
+            exit 1
+          fi
+          echo "::notice::All three version sources match: $TAG"
+
       - name: Build package
         run: uv build
 
