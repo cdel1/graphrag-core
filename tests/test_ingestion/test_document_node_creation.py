@@ -165,3 +165,108 @@ async def test_ingest_raises_if_graph_store_without_import_run_id(monkeypatch):
     store = InMemoryGraphStore()
     with pytest.raises(ValueError, match="import_run_id"):
         await pipeline.ingest(b"x", "text/plain", graph_store=store)
+
+
+@pytest.mark.asyncio
+async def test_ingest_creates_chunk_nodes_before_chunked_from_edges(monkeypatch):
+    """Regression: BB1 must merge :Chunk nodes before CHUNKED_FROM edges so
+    Neo4j MERGE-with-MATCH-endpoints semantics work end-to-end (see v0.6.1 fix).
+
+    The InMemoryGraphStore is permissive (relationships don't require nodes
+    to exist), so prior to the fix this test would have passed silently on
+    Memory while Neo4j crashed with a None record at MERGE time.
+    """
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="t", source="s", doc_type="d",
+        date=None, quarter=None, period="2026-Q1", sha256="chunknode-1",
+    )
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 50))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    chunks = await pipeline.ingest(
+        b"x", "text/plain", config=ChunkConfig(),
+        graph_store=store, import_run_id="run-1",
+    )
+
+    all_nodes = await store.list_nodes()
+    chunk_nodes = [n for n in all_nodes if n.label == "Chunk"]
+    assert len(chunk_nodes) == len(chunks), (
+        f"expected {len(chunks)} :Chunk nodes, got {len(chunk_nodes)}"
+    )
+    # Chunk nodes must carry the chunk text + page/position from the parsed doc
+    chunk_ids = {n.id for n in chunk_nodes}
+    assert chunk_ids == {c.id for c in chunks}
+    for n in chunk_nodes:
+        assert "text" in n.properties
+
+
+# ---------------------------------------------------------------------------
+# Neo4j integration regression — the bug the v0.6.1 fix addresses
+
+import os as _os
+
+_NEO4J_TEST_DB = _os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
+
+
+@pytest.fixture
+async def neo4j_test_store():
+    from graphrag_core.graph.neo4j import Neo4jGraphStore
+
+    store = Neo4jGraphStore(database=_NEO4J_TEST_DB)
+    async with store._driver.session(database=_NEO4J_TEST_DB) as session:
+        await session.run("MATCH (n) DETACH DELETE n")
+    yield store
+    await store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
+    neo4j_test_store, monkeypatch,
+):
+    """Regression: with Neo4j, BB1 must merge :Chunk nodes BEFORE the
+    CHUNKED_FROM edges or merge_relationship's MATCH (a),(b) returns None
+    and the call raises TypeError. The InMemoryGraphStore path is
+    permissive and won't catch this — only a live-Neo4j test will.
+    """
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="Neo4j Smoke", source="smoke", doc_type="report",
+        date=None, quarter=None, period="2026-Q1", sha256="neo4j-smoke",
+    )
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 50))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    chunks = await pipeline.ingest(
+        b"x", "text/plain", config=ChunkConfig(),
+        graph_store=neo4j_test_store, import_run_id="run-1",
+    )
+
+    # Document node exists with period
+    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+        result = await session.run(
+            "MATCH (d:Document {id: $id}) RETURN d.period AS period, d.title AS title",
+            id="doc:neo4j-smoke",
+        )
+        record = await result.single()
+    assert record is not None
+    assert record["period"] == "2026-Q1"
+
+    # Chunk nodes exist, count == chunks returned
+    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+        result = await session.run("MATCH (c:Chunk) RETURN count(c) AS n")
+        n_chunks_in_graph = (await result.single())["n"]
+    assert n_chunks_in_graph == len(chunks)
+
+    # CHUNKED_FROM edges link every chunk to the document
+    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+        result = await session.run(
+            "MATCH (c:Chunk)-[:CHUNKED_FROM]->(d:Document {id: $id}) RETURN count(c) AS n",
+            id="doc:neo4j-smoke",
+        )
+        n_edges = (await result.single())["n"]
+    assert n_edges == len(chunks)

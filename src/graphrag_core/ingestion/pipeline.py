@@ -59,6 +59,19 @@ class IngestionPipeline:
                 import_run_id,
             )
             for chunk in chunks:
+                # :Chunk node must exist before CHUNKED_FROM edge — Neo4j MERGE
+                # requires both endpoints to be matchable.
+                chunk_props: dict[str, object] = {"text": chunk.text}
+                if chunk.page is not None:
+                    chunk_props["page"] = chunk.page
+                if chunk.position is not None:
+                    chunk_props["position"] = chunk.position
+                if chunk.chunk_type:
+                    chunk_props["chunk_type"] = chunk.chunk_type
+                await graph_store.merge_node(
+                    GraphNode(id=chunk.id, label="Chunk", properties=chunk_props),
+                    import_run_id,
+                )
                 await graph_store.merge_relationship(
                     GraphRelationship(
                         source_id=chunk.id,
