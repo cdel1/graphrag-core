@@ -121,6 +121,9 @@ async def ingest(
 - **Returns `list[DocumentChunk]`** (the chunks produced and stored). Callers can use these for downstream extraction.
 - **Does *not* run extraction.** That's BB2. Pipeline composition is left to the caller (Lacuna's `LacunaIngestionPipeline` wires parse → chunk → extract → canonicalize → store).
 - **Stable chunk IDs across re-ingestion of the same source.** Delta detection relies on this.
+- **(v0.6.0) Writes the `Document` node and the `(:DocumentChunk)-[:CHUNKED_FROM]->(:Document)` edges** when given a `GraphStore`. The `Document` node carries `DocumentMetadata` properties verbatim (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). This makes `GraphStore.get_audit_trail` reach the document level — the contract that BB7 temporal tools (`get_node_history`, `compare_periods`, `find_trend`) depend on.
+
+> **Why BB1 owns this:** every consumer of graphrag-core that wants period-aware tooling needs document-level provenance. Pre-v0.6.0, document-node creation was the caller's responsibility (and Lacuna didn't do it, which silently broke `claim_period`). Pulling it into BB1 makes the provenance chain complete out of the box and removes a class of "tools return empty results" bugs.
 
 ### Error modes
 

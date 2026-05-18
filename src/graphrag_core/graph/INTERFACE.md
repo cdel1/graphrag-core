@@ -35,7 +35,7 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 - **`merge_node`** — Idempotent on `node.id`. If a node with this ID exists, properties are merged (last-write-wins on conflicts). Returns the canonical node ID (may differ if the implementation canonicalizes IDs). The `import_run_id` is recorded as provenance regardless of whether the node was newly created or merged.
 - **`merge_relationship`** — Idempotent on `(source_id, target_id, type)`. If an edge with the same triple exists, properties are merged. `import_run_id` is recorded.
 - **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the lineage edge `(:GraphNode)-[:EXTRACTED_FROM]->(:DocumentChunk)`.
-- **`get_audit_trail`** — Must return the *full* provenance chain (node → chunks → documents → data source). If the node has no provenance, returns an `AuditTrail` with `provenance_chain=[]`, not `None`.
+- **`get_audit_trail`** — Must return the *full* provenance chain `node → chunk(s) → document(s)` as ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns an `AuditTrail` with `provenance_chain=[]`, not `None`. **(v0.6.0 extension — pre-v0.6.0 backends only emitted node + chunk levels. BB7 temporal tools rely on the document level for period resolution.)**
 - **`get_related`** — `depth=1` returns immediate neighbors. `depth=2` includes neighbors-of-neighbors. The caller pays for traversal cost — depth >3 is a code smell.
 - **`list_nodes` / `list_relationships`** — May be expensive on large graphs. Used by Tier 2 computations (community detection, divergence detection). Implementations should stream or paginate if backing store supports it; current Protocol returns full list — callers must accept O(n) memory.
 
@@ -136,7 +136,7 @@ class MyGraphStore:
 
 - `merge_node` is idempotent (call twice with same node, count = 1).
 - `merge_relationship` is idempotent (call twice with same triple, count = 1).
-- `get_audit_trail` returns the full chain for a node ingested via `IngestionPipeline`.
+- `get_audit_trail` returns the full chain for a node ingested via `IngestionPipeline`. The chain has at least one `level="document"` step; that step's `metadata` carries `period` (when set on the source document).
 - `get_related(depth=1)` returns only direct neighbors.
 - `list_nodes` returns every node ever merged (no filtering by import_run_id).
 - `validate_schema` is idempotent and never raises.

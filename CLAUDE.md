@@ -113,8 +113,27 @@ python -m graphrag_core.graph.schema   # apply schema
 - CHANGELOG.md tracks all changes
 - First public commit establishes prior art before any organizational use
 
-### Next release blockers (per audit decision E1, 2026-05-15)
+### Next release blockers — v0.6.0 (per audit E1, scope-revised 2026-05-17)
 
-Before the next PyPI version bump, complete the BB7 push-down: move `get_entity_history`, `compare_periods`, `find_trend`, `find_unaddressed_topics` from `lacuna/intelligence/temporal.py` + `intelligence/curation.py` into `graphrag_core/tools/`. These are domain-agnostic (any L2 consumer with period-tagged claims benefits). Rename `compare_quarters → compare_periods` in the interface spec (generalization). Update interface spec v0.2.0 default-implementations table accordingly.
+The audit's "BB7 push-down" turned out to be four entangled workstreams once we looked at the actual code. All four ship together in v0.6.0 because (2) and (3) depend on (1) and (4) is the natural sibling.
 
-Optional same-release: implement minimal `MemoryEmbeddingModel` for testing if no default lands; flag `ApprovalGateway` / `ReportRenderer` Protocol-only status in CHANGELOG.
+**(1) BB3 — extend `AuditTrail` to document level.** `get_audit_trail(node_id)` today returns `node → chunk(s)`. Extend both `Neo4jGraphStore` and `MemoryGraphStore` to walk `chunk → document` and emit a `level="document"` `ProvenanceStep` carrying `DocumentMetadata` in `metadata`. The audit-trail Protocol's design intent always reached "documents → data source" but the impls stopped at chunks. Closes that gap.
+
+**(2) BB1 — IngestionPipeline writes `Document` nodes and `CHUNKED_FROM` edges.** Today no consumer creates `Document` graph nodes; `period` lives on no node anywhere. Pulling document-node creation into BB1 means provenance reaches the document level out of the box for every consumer (Lacuna and future). Add `period: str | None` field to `DocumentMetadata`; deprecate `quarter` (alias for one release, remove at v0.7.0).
+
+**(3) BB7 — push down 3 temporal tools (not 4).**
+- `get_node_history` (renamed from Lacuna's `get_entity_history` — graphrag-core operates on `GraphNode`, not the Lacuna `Entity` Tier-1 label)
+- `compare_periods` (already named correctly per the spec's `compare_quarters → compare_periods` rename)
+- `find_trend`
+
+All three consume `get_audit_trail` for period resolution. Zero hardcoded Lacuna labels/edges. Optional `rel_type` kwarg follows existing BB7 pattern in `make_get_related_tool` — domain consumers wanting "Claim-only history" pass `rel_type="ABOUT"` at the call site.
+
+`find_unaddressed_topics` **stays in Lacuna** — descoped from the audit's E1 list because it references `Topic` (Tier 3, human-curated) and `HAS_RECOMMENDATION` (Lacuna edge); not domain-agnostic by the push-down test.
+
+**(4) Neo4j becomes an optional extra.** Move `neo4j` driver to `[project.optional-dependencies] neo4j = [...]`. Lazy-import inside `Neo4jGraphStore`. Soft-breaking change: `pip install graphrag-core==0.6.0` no longer pulls Neo4j; users need `pip install graphrag-core[neo4j]`. CHANGELOG must call this out.
+
+**Optional same-release:** implement minimal `MemoryEmbeddingModel` for testing if no default lands; flag `ApprovalGateway` / `ReportRenderer` Protocol-only status in CHANGELOG.
+
+**Estimated scope:** ~4–5 engineer-days (not the audit's "~1 day" estimate).
+
+**Load-bearing decision:** see `tessera/docs/adr/0001-audit-trail-reaches-document-level.md` for the rationale on extending the audit trail rather than parameterizing magic label strings in the BB7 tools.
