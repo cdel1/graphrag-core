@@ -51,6 +51,25 @@ class TestIngestionModels:
         assert meta.date is None
         assert meta.quarter is None
 
+    def test_document_metadata_has_period_field(self):
+        md = DocumentMetadata(
+            title="Q2 report",
+            source="ber-airport-2026",
+            doc_type="progress_report",
+            date=None,
+            quarter=None,
+            period="2026-Q2",
+            sha256="abc123",
+        )
+        assert md.period == "2026-Q2"
+
+    def test_document_metadata_period_optional(self):
+        md = DocumentMetadata(
+            title="undated", source="x", doc_type="x",
+            date=None, quarter=None, period=None, sha256="x",
+        )
+        assert md.period is None
+
     def test_text_section(self):
         section = TextSection(heading="Introduction", text="Some text", page=1)
         assert section.heading == "Introduction"

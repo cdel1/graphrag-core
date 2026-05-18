@@ -17,7 +17,8 @@ class DocumentMetadata(BaseModel):
     source: str
     doc_type: str
     date: date | None
-    quarter: str | None
+    quarter: str | None = None  # DEPRECATED — remove at v0.7.0; use `period`
+    period: str | None = None   # canonical doc-time field, lexically-sortable
     sha256: str
 
 
