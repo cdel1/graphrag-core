@@ -108,7 +108,7 @@ class Neo4jGraphStore:
             "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
             "RETURN n, labels(n) AS node_labels, "
             "       collect(DISTINCT c.id) AS chunk_ids, "
-            "       collect(DISTINCT {id: d.id, props: properties(d)}) AS docs"
+            "       collect(DISTINCT CASE WHEN d IS NOT NULL THEN {id: d.id, props: properties(d)} END) AS docs"
         )
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query, id=node_id)
@@ -127,7 +127,7 @@ class Neo4jGraphStore:
                     if not doc.get("id") or doc["id"] in seen:
                         continue
                     chain.append(ProvenanceStep(level="document", id=doc["id"],
-                                                metadata=doc["props"] or {}))
+                                                metadata=doc["props"]))
                     seen.add(doc["id"])
 
             return AuditTrail(node_id=node_id, provenance_chain=chain)
