@@ -105,7 +105,10 @@ class Neo4jGraphStore:
         query = (
             "MATCH (n {id: $id}) "
             "OPTIONAL MATCH (c:Chunk)-[:SOURCED]->(n) "
-            "RETURN n, labels(n) AS labels, collect(c.id) AS chunk_ids"
+            "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
+            "RETURN n, labels(n) AS node_labels, "
+            "       collect(DISTINCT c.id) AS chunk_ids, "
+            "       collect(DISTINCT {id: d.id, props: properties(d)}) AS docs"
         )
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query, id=node_id)
@@ -113,12 +116,19 @@ class Neo4jGraphStore:
 
             chain: list[ProvenanceStep] = []
             if record and record["n"]:
-                labels = [l for l in record["labels"] if l != "Chunk"]
+                labels = [l for l in record["node_labels"] if l != "Chunk"]
                 label = labels[0] if labels else "Unknown"
                 chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": label}))
                 for chunk_id in record["chunk_ids"]:
                     if chunk_id:
                         chain.append(ProvenanceStep(level="chunk", id=chunk_id, metadata={}))
+                seen: set[str] = set()
+                for doc in record["docs"]:
+                    if not doc.get("id") or doc["id"] in seen:
+                        continue
+                    chain.append(ProvenanceStep(level="document", id=doc["id"],
+                                                metadata=doc["props"] or {}))
+                    seen.add(doc["id"])
 
             return AuditTrail(node_id=node_id, provenance_chain=chain)
 

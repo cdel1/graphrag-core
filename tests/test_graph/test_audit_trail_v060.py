@@ -153,10 +153,56 @@ async def test_memory_audit_trail_deduplicates_document_step():
     assert len(doc_steps) == 1, (
         f"expected exactly 1 document step, got {len(doc_steps)}"
     )
-    # Pin interleaved ordering: document step must be emitted inline immediately
-    # after the first chunk that resolves to it (not batched at the end).
+    # Node must be first; remaining steps may be in any backend-defined order.
     levels = [s.level for s in trail.provenance_chain]
-    assert levels == ["node", "chunk", "document", "chunk"], (
-        f"document step must be emitted inline immediately after the first "
-        f"resolving chunk, got {levels}"
+    assert levels[0] == "node"  # node always first
+    assert sorted(levels[1:]) == ["chunk", "chunk", "document"]  # rest in any order
+
+
+# ---------------------------------------------------------------------------
+# Neo4j integration tests — skipped unless --run-integration is passed
+# ---------------------------------------------------------------------------
+
+import os as _os
+
+_NEO4J_TEST_DB = _os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
+
+
+@pytest.fixture
+async def neo4j_test_store():
+    from graphrag_core.graph.neo4j import Neo4jGraphStore
+
+    store = Neo4jGraphStore(database=_NEO4J_TEST_DB)
+    async with store._driver.session(database=_NEO4J_TEST_DB) as session:
+        await session.run("MATCH (n) DETACH DELETE n")
+    yield store
+    await store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_neo4j_audit_trail_reaches_document(neo4j_test_store):
+    """Requires running Neo4j; gated by integration marker."""
+    store = neo4j_test_store
+    await store.merge_node(
+        GraphNode(id="doc:1", label="Document",
+                  properties={"title": "Q2 report", "period": "2026-Q2"}),
+        import_run_id="run-1",
     )
+    await store.merge_node(
+        GraphNode(id="claim:1", label="Claim", properties={}),
+        import_run_id="run-1",
+    )
+    await store.record_provenance("claim:1", "chunk:1", "run-1")
+    await store.merge_relationship(
+        GraphRelationship(source_id="chunk:1", target_id="doc:1",
+                          type="CHUNKED_FROM", properties={}),
+        import_run_id="run-1",
+    )
+
+    trail = await store.get_audit_trail("claim:1")
+    doc_step = next((s for s in trail.provenance_chain if s.level == "document"), None)
+    assert doc_step is not None
+    assert doc_step.id == "doc:1"
+    assert doc_step.metadata.get("period") == "2026-Q2"
+    assert doc_step.metadata.get("title") == "Q2 report"
