@@ -51,6 +51,7 @@ class IngestionPipeline:
             # quarter -> period fallback for v0.6.0 transition (Task 6)
             if doc_props.get("period") is None and doc_props.get("quarter"):
                 doc_props["period"] = doc_props["quarter"]
+            doc_props.pop("quarter", None)  # do not persist deprecated field
 
             doc_id = f"doc:{metadata.sha256}"
             await graph_store.merge_node(

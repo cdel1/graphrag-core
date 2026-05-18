@@ -26,6 +26,23 @@ from graphrag_core.models import (
 )
 
 
+def test_document_metadata_quarter_emits_deprecation_warning():
+    """quarter is a deprecated field — accessing it emits a DeprecationWarning."""
+    import warnings
+    from graphrag_core.models import DocumentMetadata
+
+    md = DocumentMetadata(
+        title="t", source="s", doc_type="d",
+        date=None, quarter="2026-Q2", period=None, sha256="x",
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _ = md.quarter  # access triggers DeprecationWarning under Pydantic v2
+    assert any(
+        issubclass(w.category, DeprecationWarning) for w in caught
+    ), f"expected DeprecationWarning; got {[w.category for w in caught]}"
+
+
 class TestIngestionModels:
     def test_document_metadata(self):
         meta = DocumentMetadata(

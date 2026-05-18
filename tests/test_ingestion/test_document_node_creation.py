@@ -128,6 +128,29 @@ async def test_quarter_falls_back_to_period(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_quarter_is_stripped_from_persisted_document(monkeypatch):
+    """quarter is a deprecated field — it must not land on the :Document node."""
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="t", source="s", doc_type="d",
+        date=None, quarter="2026-Q2", period=None, sha256="strip-test",
+    )
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    await pipeline.ingest(b"x", "text/plain", graph_store=store, import_run_id="r1")
+
+    docs = [n for n in await store.list_nodes() if n.label == "Document"]
+    assert len(docs) == 1
+    # quarter must not appear on the Document node properties
+    assert "quarter" not in docs[0].properties
+    # period must still be populated from the fallback
+    assert docs[0].properties["period"] == "2026-Q2"
+
+
+@pytest.mark.asyncio
 async def test_ingest_raises_if_graph_store_without_import_run_id(monkeypatch):
     """Defensive: graph_store provided but import_run_id missing -> ValueError."""
     parser = TextParser()

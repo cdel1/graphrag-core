@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
@@ -17,7 +17,10 @@ class DocumentMetadata(BaseModel):
     source: str
     doc_type: str
     date: date | None
-    quarter: str | None = None  # DEPRECATED — remove at v0.7.0; use `period`
+    quarter: str | None = Field(
+        default=None,
+        deprecated="Use `period` instead. `quarter` will be removed at v0.7.0.",
+    )
     period: str | None = None   # canonical doc-time field, lexically-sortable
     sha256: str
 
