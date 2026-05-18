@@ -1,10 +1,13 @@
-"""BB3: Neo4j-backed GraphStore implementation."""
+"""BB3: Neo4j-backed GraphStore implementation.
+
+The ``neo4j`` Python driver is an optional dependency (install via
+``pip install graphrag-core[neo4j]``). It is imported lazily inside
+``__init__`` so consumers who only use InMemoryGraphStore don't need it.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-
-from neo4j import AsyncGraphDatabase
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.models import (
@@ -15,6 +18,8 @@ from graphrag_core.models import (
     ProvenanceStep,
     SchemaViolation,
 )
+# Note: `from neo4j import AsyncGraphDatabase` is intentionally NOT here.
+# See Neo4jGraphStore.__init__ below.
 
 
 class Neo4jGraphStore:
@@ -26,6 +31,13 @@ class Neo4jGraphStore:
         auth: tuple[str, str] = ("neo4j", "development"),
         database: str = "neo4j",
     ) -> None:
+        try:
+            from neo4j import AsyncGraphDatabase
+        except ImportError as e:
+            raise ImportError(
+                "Neo4jGraphStore requires the 'neo4j' extra. "
+                "Install with: pip install graphrag-core[neo4j]"
+            ) from e
         self._driver = AsyncGraphDatabase.driver(uri, auth=auth)
         self._database = database
 
