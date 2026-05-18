@@ -137,6 +137,9 @@ class MyGraphStore:
 - `merge_node` is idempotent (call twice with same node, count = 1).
 - `merge_relationship` is idempotent (call twice with same triple, count = 1).
 - `get_audit_trail` returns the full chain for a node ingested via `IngestionPipeline`. The chain has at least one `level="document"` step; that step's `metadata` carries `period` (when set on the source document).
+- `get_audit_trail` emits exactly one `level="document"` step per unique source document (dedup invariant — important when a node's chunks span the same doc).
+- `get_audit_trail` returns `AuditTrail(node_id=N, provenance_chain=[])` for a node not in the store.
+- After `apply_schema`, Neo4j has a `:Document(id)` uniqueness constraint.
 - `get_related(depth=1)` returns only direct neighbors.
 - `list_nodes` returns every node ever merged (no filtering by import_run_id).
 - `validate_schema` is idempotent and never raises.

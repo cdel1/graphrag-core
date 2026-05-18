@@ -159,3 +159,9 @@ Then add to the parser registry in the calling pipeline.
 - Chunker: chunks honor `max_tokens` ceiling.
 - Chunker: page/position preserved for paginated source.
 - IngestionPipeline: unsupported `content_type` → `ValueError`.
+- `IngestionPipeline.ingest(...)` without `graph_store` returns chunks and makes no graph mutations (backward-compat).
+- `IngestionPipeline.ingest(graph_store=store, import_run_id=R)` writes one `:Document` node with `DocumentMetadata` properties + one `CHUNKED_FROM` edge per chunk.
+- Re-ingestion of the same source bytes (same `sha256`) is idempotent — one `:Document` node total.
+- `quarter → period` fallback: if `metadata.period is None and metadata.quarter` is set, the Document node carries `period=quarter`.
+- The persisted Document node properties do NOT contain `quarter` (it is stripped before write to avoid carrying the deprecated field forward).
+- `IngestionPipeline.ingest(graph_store=store)` without `import_run_id` raises `ValueError`.

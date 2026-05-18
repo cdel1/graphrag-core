@@ -148,3 +148,9 @@ library.register(make_my_tool(some_dep))
 - `execute("known_name", **missing_required)` → `ToolResult(success=False, error="missing required parameter: ...")`.
 - Handler exception → caught, wrapped as `ToolResult(success=False, error=...)`. Never propagated.
 - `data` is JSON-serializable (round-trip through `json.dumps` succeeds).
+- `register_temporal_tools(library, gs)` registers exactly three tools: `get_node_history`, `compare_periods`, `find_trend`.
+- `get_node_history` groups a node's neighbors by their resolved source-document period.
+- `compare_periods` returns `PeriodDiff(added, removed)` set-diff of neighbors between two periods.
+- `find_trend` returns direction `∈ {"increasing", "decreasing", "stable", "insufficient_data"}` based on first-vs-last period neighbor counts.
+- All BB7 temporal-tool handlers are exception-safe: internal errors are wrapped as `ToolResult(success=False, error=...)` instead of propagated.
+- Missing-node case: temporal tools return `ToolResult(success=True, data={periods: {}})` or equivalent empty result — they do not raise.
