@@ -39,6 +39,8 @@ class InMemoryGraphStore:
                 and existing.type == rel.type
             ):
                 self._relationships[i] = rel
+                if rel.type == "CHUNKED_FROM":
+                    self._chunk_to_doc[rel.source_id] = rel.target_id
                 return f"{rel.source_id}-{rel.type}-{rel.target_id}"
         self._relationships.append(rel)
         if rel.type == "CHUNKED_FROM":
