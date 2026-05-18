@@ -73,3 +73,42 @@ async def test_chunked_from_index_different_target_is_new_row():
     # Two separate relationship rows exist
     rels = await store.list_relationships()
     assert len(rels) == 2
+
+
+@pytest.mark.asyncio
+async def test_memory_audit_trail_reaches_document():
+    store = InMemoryGraphStore()
+    # Document
+    await store.merge_node(
+        GraphNode(id="doc:1", label="Document",
+                  properties={"title": "Q2 report", "period": "2026-Q2",
+                              "date": "2026-05-01"}),
+        import_run_id="run-1",
+    )
+    # Node + provenance to chunk
+    await store.merge_node(GraphNode(id="claim:1", label="Claim", properties={}),
+                           "run-1")
+    await store.record_provenance("claim:1", "chunk:1", "run-1")
+    # Chunk -> Document edge
+    await store.merge_relationship(
+        GraphRelationship(source_id="chunk:1", target_id="doc:1",
+                          type="CHUNKED_FROM", properties={}),
+        import_run_id="run-1",
+    )
+
+    trail = await store.get_audit_trail("claim:1")
+    levels = [step.level for step in trail.provenance_chain]
+    assert "document" in levels
+
+    doc_step = next(s for s in trail.provenance_chain if s.level == "document")
+    assert doc_step.id == "doc:1"
+    assert doc_step.metadata.get("period") == "2026-Q2"
+    assert doc_step.metadata.get("title") == "Q2 report"
+
+
+@pytest.mark.asyncio
+async def test_memory_audit_trail_empty_for_orphan_node():
+    store = InMemoryGraphStore()
+    trail = await store.get_audit_trail("nonexistent")
+    assert trail.node_id == "nonexistent"
+    assert trail.provenance_chain == []

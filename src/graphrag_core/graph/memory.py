@@ -61,8 +61,15 @@ class InMemoryGraphStore:
         node = self._nodes.get(node_id)
         if node:
             chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": node.label}))
+        seen_docs: set[str] = set()
         for chunk_id in self._provenance.get(node_id, []):
             chain.append(ProvenanceStep(level="chunk", id=chunk_id, metadata={}))
+            doc_id = self._chunk_to_doc.get(chunk_id)
+            if doc_id and doc_id not in seen_docs:
+                doc_node = self._nodes.get(doc_id)
+                metadata = dict(doc_node.properties) if doc_node else {}
+                chain.append(ProvenanceStep(level="document", id=doc_id, metadata=metadata))
+                seen_docs.add(doc_id)
         return AuditTrail(node_id=node_id, provenance_chain=chain)
 
     async def get_related(
