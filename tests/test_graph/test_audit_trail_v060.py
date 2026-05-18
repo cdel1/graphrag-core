@@ -206,3 +206,28 @@ async def test_neo4j_audit_trail_reaches_document(neo4j_test_store):
     assert doc_step.id == "doc:1"
     assert doc_step.metadata.get("period") == "2026-Q2"
     assert doc_step.metadata.get("title") == "Q2 report"
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_document_uniqueness_constraint(neo4j_test_store):
+    """After apply_schema runs, Neo4j has a uniqueness constraint on :Document(id)."""
+    from graphrag_core.models import OntologySchema
+
+    schema = OntologySchema(node_types=[], relationship_types=[])
+    await neo4j_test_store.apply_schema(schema)
+
+    async with neo4j_test_store._driver.session(
+        database=neo4j_test_store._database
+    ) as session:
+        result = await session.run("SHOW CONSTRAINTS")
+        constraints = [dict(record) async for record in result]
+        doc_constraints = [
+            c for c in constraints
+            if c.get("labelsOrTypes") == ["Document"]
+               and "id" in (c.get("properties") or [])
+        ]
+        assert len(doc_constraints) >= 1, (
+            f"Expected a :Document(id) uniqueness constraint, "
+            f"got constraints: {constraints}"
+        )

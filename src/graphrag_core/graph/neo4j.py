@@ -164,6 +164,10 @@ class Neo4jGraphStore:
 
     async def apply_schema(self, schema: OntologySchema) -> None:
         async with self._driver.session(database=self._database) as session:
+            await session.run(
+                "CREATE CONSTRAINT document_id_unique IF NOT EXISTS "
+                "FOR (d:Document) REQUIRE d.id IS UNIQUE"
+            )
             for nt in schema.node_types:
                 validate_identifier(nt.label, "node label")
                 constraint_query = (
