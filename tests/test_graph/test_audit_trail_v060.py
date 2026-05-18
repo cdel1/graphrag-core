@@ -112,3 +112,36 @@ async def test_memory_audit_trail_empty_for_orphan_node():
     trail = await store.get_audit_trail("nonexistent")
     assert trail.node_id == "nonexistent"
     assert trail.provenance_chain == []
+
+
+@pytest.mark.asyncio
+async def test_memory_audit_trail_deduplicates_document_step():
+    """A node with multiple chunks from the same document should emit
+    the document-level ProvenanceStep exactly once (seen_docs dedup)."""
+    store = InMemoryGraphStore()
+    await store.merge_node(
+        GraphNode(id="doc:1", label="Document",
+                  properties={"period": "2026-Q2", "title": "Q2 report"}),
+        import_run_id="run-1",
+    )
+    await store.merge_node(GraphNode(id="claim:1", label="Claim", properties={}),
+                           import_run_id="run-1")
+    await store.record_provenance("claim:1", "chunk:1", "run-1")
+    await store.record_provenance("claim:1", "chunk:2", "run-1")
+    for chunk_id in ("chunk:1", "chunk:2"):
+        await store.merge_relationship(
+            GraphRelationship(source_id=chunk_id, target_id="doc:1",
+                              type="CHUNKED_FROM", properties={}),
+            import_run_id="run-1",
+        )
+
+    trail = await store.get_audit_trail("claim:1")
+    doc_steps = [s for s in trail.provenance_chain if s.level == "document"]
+    assert len(doc_steps) == 1, (
+        f"expected exactly 1 document step, got {len(doc_steps)}"
+    )
+    # And sanity: 4 steps total — node + 2 chunks + 1 document (order: document
+    # step is emitted inline after the first chunk that resolves to it)
+    levels = [s.level for s in trail.provenance_chain]
+    assert sorted(levels) == ["chunk", "chunk", "document", "node"]
+    assert levels[0] == "node"  # node step is always first
