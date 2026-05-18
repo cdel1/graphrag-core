@@ -107,11 +107,24 @@ async def test_memory_audit_trail_reaches_document():
 
 
 @pytest.mark.asyncio
-async def test_memory_audit_trail_empty_for_orphan_node():
+async def test_memory_audit_trail_missing_node_returns_empty_chain():
     store = InMemoryGraphStore()
     trail = await store.get_audit_trail("nonexistent")
     assert trail.node_id == "nonexistent"
     assert trail.provenance_chain == []
+
+
+@pytest.mark.asyncio
+async def test_memory_audit_trail_node_without_provenance_returns_node_step_only():
+    """A node that exists but has no chunks yields just the node-level step."""
+    store = InMemoryGraphStore()
+    await store.merge_node(
+        GraphNode(id="claim:lonely", label="Claim", properties={}),
+        import_run_id="run-1",
+    )
+    trail = await store.get_audit_trail("claim:lonely")
+    levels = [s.level for s in trail.provenance_chain]
+    assert levels == ["node"]
 
 
 @pytest.mark.asyncio
@@ -140,8 +153,10 @@ async def test_memory_audit_trail_deduplicates_document_step():
     assert len(doc_steps) == 1, (
         f"expected exactly 1 document step, got {len(doc_steps)}"
     )
-    # And sanity: 4 steps total — node + 2 chunks + 1 document (order: document
-    # step is emitted inline after the first chunk that resolves to it)
+    # Pin interleaved ordering: document step must be emitted inline immediately
+    # after the first chunk that resolves to it (not batched at the end).
     levels = [s.level for s in trail.provenance_chain]
-    assert sorted(levels) == ["chunk", "chunk", "document", "node"]
-    assert levels[0] == "node"  # node step is always first
+    assert levels == ["node", "chunk", "document", "chunk"], (
+        f"document step must be emitted inline immediately after the first "
+        f"resolving chunk, got {levels}"
+    )
