@@ -162,8 +162,8 @@ async def test_compare_periods_added_removed():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("counts,expected", [
-    ({"2026-Q1": 1, "2026-Q2": 2, "2026-Q3": 3}, "deteriorating"),
-    ({"2026-Q1": 3, "2026-Q2": 2, "2026-Q3": 1}, "improving"),
+    ({"2026-Q1": 1, "2026-Q2": 2, "2026-Q3": 3}, "increasing"),
+    ({"2026-Q1": 3, "2026-Q2": 2, "2026-Q3": 1}, "decreasing"),
     ({"2026-Q1": 2, "2026-Q2": 2, "2026-Q3": 2}, "stable"),
     ({"2026-Q1": 1}, "insufficient_data"),
 ])
@@ -217,3 +217,20 @@ async def test_temporal_tool_handler_wraps_internal_error_as_tool_result():
     result = await tool.handler(node_id="anything")
     assert result.success is False
     assert "boom" in (result.error or "")
+
+
+# ---------------------------------------------------------------------------
+# compare_periods edge cases
+
+@pytest.mark.asyncio
+async def test_compare_periods_same_period_returns_empty_diff():
+    """When period_from == period_to, added and removed are both empty."""
+    store = InMemoryGraphStore()
+    await _make_anchor_with_neighbors_in_periods(
+        store, "e:1", {"2026-Q2": 2}, rel_type="ABOUT",
+    )
+    diff = await _compare_periods(
+        store, "e:1", period_from="2026-Q2", period_to="2026-Q2", rel_type="ABOUT",
+    )
+    assert diff.added == []
+    assert diff.removed == []

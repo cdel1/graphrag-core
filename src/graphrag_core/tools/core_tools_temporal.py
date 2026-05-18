@@ -3,7 +3,10 @@
 These tools route through GraphStore.get_audit_trail to resolve a node's
 source-document period — no hardcoded Lacuna labels or edge names. The
 optional rel_type kwarg lets callers filter neighbors at the call site
-(e.g., Lacuna passes rel_type="ABOUT" for claim-only history).
+(e.g., Lacuna passes rel_type="ABOUT" for claim-only history). Without
+rel_type, all incident edges (including structural provenance edges like
+EXTRACTED_FROM, CHUNKED_FROM) are counted as neighbors — almost never the
+desired semantic.
 """
 
 from __future__ import annotations
@@ -39,10 +42,15 @@ class PeriodDiff:
 
 @dataclass
 class TrendSignal:
-    """Direction of a node's neighbor-count change across periods."""
+    """Direction of a node's neighbor-count change across periods.
+
+    `direction` is neutral on whether more neighbors is good or bad —
+    that's a domain interpretation owned by consumers. Possible values:
+    "increasing", "decreasing", "stable", "insufficient_data".
+    """
 
     node_id: str
-    direction: str  # "improving" | "deteriorating" | "stable" | "insufficient_data"
+    direction: str
     counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -103,7 +111,10 @@ def make_get_node_history_tool(graph_store: "GraphStore") -> Tool:
             "node_id": ToolParameter(name="node_id", type="string",
                 description="Anchor node ID", required=True),
             "rel_type": ToolParameter(name="rel_type", type="string",
-                description="Filter neighbors by relationship type", required=False),
+                description="Filter neighbors by relationship type. Strongly recommended: "
+                "without it, all edges (including structural provenance) are counted as neighbors, "
+                "which is rarely what callers want for semantic analysis.",
+                required=False),
             "from_period": ToolParameter(name="from_period", type="string",
                 description="Lower bound (inclusive, lex order)", required=False),
             "to_period": ToolParameter(name="to_period", type="string",
@@ -167,7 +178,10 @@ def make_compare_periods_tool(graph_store: "GraphStore") -> Tool:
             "period_to": ToolParameter(name="period_to", type="string",
                 description="Comparison period", required=True),
             "rel_type": ToolParameter(name="rel_type", type="string",
-                description="Filter neighbors by relationship type", required=False),
+                description="Filter neighbors by relationship type. Strongly recommended: "
+                "without it, all edges (including structural provenance) are counted as neighbors, "
+                "which is rarely what callers want for semantic analysis.",
+                required=False),
         },
         handler=handler,
     )
@@ -195,9 +209,9 @@ async def _find_trend(
     else:
         first, last = counts[periods[0]], counts[periods[-1]]
         if last > first:
-            direction = "deteriorating"
+            direction = "increasing"
         elif last < first:
-            direction = "improving"
+            direction = "decreasing"
         else:
             direction = "stable"
 
@@ -223,7 +237,10 @@ def make_find_trend_tool(graph_store: "GraphStore") -> Tool:
             "node_id": ToolParameter(name="node_id", type="string",
                 description="Anchor node ID", required=True),
             "rel_type": ToolParameter(name="rel_type", type="string",
-                description="Filter neighbors by relationship type", required=False),
+                description="Filter neighbors by relationship type. Strongly recommended: "
+                "without it, all edges (including structural provenance) are counted as neighbors, "
+                "which is rarely what callers want for semantic analysis.",
+                required=False),
         },
         handler=handler,
     )
