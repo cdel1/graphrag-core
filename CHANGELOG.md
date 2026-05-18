@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.6.1] — 2026-05-18
 
+> **Release-note retrospective:** This release is a clean republish of the same code first uploaded to PyPI as `0.6.0` on 2026-05-18. That earlier upload happened with an unbumped `pyproject.toml` (`version = "0.6.0"`) even though the artifact contained the v0.6.1 fix code and `__version__ = "0.6.1"` in-package. PyPI's `0.6.0` has been yanked; install `>=0.6.1`. No pre-yank `0.6.0` was ever published with the broken pre-fix code — the broken state existed only in the v0.6.0 PR before this hotfix landed.
+
 ### Fixed
 
 - **BB1 — `IngestionPipeline.ingest` now merges `:Chunk` nodes before merging `CHUNKED_FROM` edges.** v0.6.0 wrote the `CHUNKED_FROM` edge from each chunk to the new `:Document` node but never created the chunk node first. `InMemoryGraphStore.merge_relationship` is permissive (just appends to a list) so v0.6.0 tests passed on Memory, but `Neo4jGraphStore.merge_relationship` does `MATCH (a {id: $source_id}), (b {id: $target_id})` — when the chunk node didn't exist, the MATCH returned no record and the caller hit `TypeError: 'NoneType' object is not subscriptable`. End-to-end ingest against a live Neo4j was broken in v0.6.0.
