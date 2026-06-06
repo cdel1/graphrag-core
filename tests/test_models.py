@@ -322,3 +322,20 @@ class TestCommunityModel:
         assert restored.node_ids == comm.node_ids
         assert restored.modularity_score == comm.modularity_score
         assert restored.metadata == comm.metadata
+
+
+def test_extraction_result_quality_signals_defaults_none():
+    from graphrag_core.models import ExtractionResult
+    result = ExtractionResult(nodes=[], relationships=[], provenance=[])
+    assert result.quality_signals is None
+
+
+def test_extraction_result_quality_signals_round_trip():
+    from graphrag_core.models import ExtractionResult
+    result = ExtractionResult(
+        nodes=[], relationships=[], provenance=[],
+        quality_signals={"pass2_orphan_edges": 3, "pass2_short_circuited": 1},
+    )
+    serialized = result.model_dump(mode="json")
+    restored = ExtractionResult.model_validate(serialized)
+    assert restored.quality_signals == {"pass2_orphan_edges": 3, "pass2_short_circuited": 1}

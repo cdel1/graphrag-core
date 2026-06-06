@@ -110,6 +110,14 @@ class ExtractionResult(BaseModel):
     nodes: list[ExtractedNode]
     relationships: list[ExtractedRelationship]
     provenance: list[ProvenanceLink]
+    quality_signals: dict[str, int | float] | None = None
+    """Optional per-strategy diagnostic counters / values.
+
+    Populated by extraction strategies that emit internal diagnostics
+    (e.g., two-pass strategies tracking dropped invalid edges). Consumers
+    (QualityReport aggregators, benchmark CLI) read this field as
+    strategy-opaque key/value pairs. None when no strategy populates it.
+    """
 
 
 class ChunkExtractionResult(BaseModel):
