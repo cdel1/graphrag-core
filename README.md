@@ -149,4 +149,6 @@ uv build
 
 ## License
 
-MIT
+The code in this repository is MIT-licensed — see [`LICENSE`](LICENSE).
+
+Data fixtures bundled under `eval/fixtures/` retain their own licenses (DocRED is MIT; **FEVEROUS is CC-BY-SA 3.0**). See [`NOTICES.md`](NOTICES.md) for attribution and redistribution terms for each fixture.
