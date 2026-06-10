@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.0] — 2026-06-10
+
+### Added
+
+- **Two concrete manifest/scorer pairs on top of the v0.7.0 eval harness — `docred` and `feverous`.** Both ship with their own JSONL fixtures under `eval/fixtures/`, register via the `graphrag_core.eval_pairs` entry-point group, and are runnable via `graphrag-core eval run <pair>`:
+  - **`docred`** — Document-level relation extraction benchmark (Wikipedia-domain). 50-doc subsample of the DocRED dev split (MIT license), seed 42. Slice axis: `relation_type`. Per-relation precision/recall via identity mapping `GraphRelationship.type → DocRED relation`.
+  - **`feverous`** — Fact-verification benchmark with table+text evidence. 50-claim subsample of the FEVEROUS dev split (CC-BY-SA 3.0), seed 42, stratified across `label × challenge`. Slice axes: `label` (SUPPORTS/REFUTES/NEI) and `challenge` (6 buckets). Predictions read from produced `:Claim` nodes' `verdict` property.
+- **CI workflows** — `eval-fast.yml` (Tier 1 invariants on every PR + push, no LLM cost) and `eval-full.yml` (full T1+T2 against both pairs, path-filtered, fork-safe via mutually-exclusive jobs).
+- **`NOTICES.md`** at repo root — canonical index of bundled third-party fixtures and their licenses (DocRED MIT, FEVEROUS CC-BY-SA 3.0). Top-level `README.md` and `eval/fixtures/feverous/LICENSE` cross-reference it.
+
+### Changed
+
+- `pyproject.toml` declares two entry points under the `graphrag_core.eval_pairs` group: `docred` and `feverous`.
+
+### Notes
+
+- The L1 harness mechanism itself was shipped in `0.7.0`. This release is the first that exposes registered pairs to external consumers via PyPI; `graphrag-core eval list` will now show `docred` and `feverous` out of the box.
+- The pipeline runners for both pairs are Band-3 stubs (emit Documents/Claims only). Scores will be near-zero until real extraction is wired in via downstream consumers.
+
 ## [0.7.0] — 2026-06-10
 
 ### Added
