@@ -1,0 +1,31 @@
+name: eval-fast
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: eval-fast-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tier-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - run: uv sync --frozen
+
+      - name: Run Tier 1 invariant tests + eval framework tests
+        # No LLM cost — Tier 1 checks operate on the produced graph only.
+        run: uv run pytest tests/eval/ -v

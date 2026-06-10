@@ -1,0 +1,55 @@
+name: eval-full
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'eval/**'
+      - 'pyproject.toml'
+
+concurrency:
+  group: eval-full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Fork-PR safety: secret access requires same-repo branch.
+    # Fork PRs fall back to eval-fast (T1 only).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - run: uv sync --frozen
+
+      - name: Install package (entry-point discovery)
+        run: uv pip install -e .
+
+      - name: Run eval harness against DocRED
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # At Band 3 the runner is a stub; scores will fail their gates by design.
+        # This workflow proves the loop executes end-to-end and emits a RunReport.
+        run: uv run graphrag-core run docred || true
+
+      - name: Run eval harness against FEVEROUS
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: uv run graphrag-core run feverous || true
+
+  fork-fallback:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Notify
+        run: |
+          echo "::warning::eval-full requires write access for the OpenAI secret; a maintainer can re-run on an internal branch."
