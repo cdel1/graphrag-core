@@ -1,0 +1,23 @@
+This fixture (sample.jsonl) is licensed under the Creative Commons
+Attribution-ShareAlike 3.0 Unported License (CC-BY-SA 3.0).
+
+Full license text:
+  https://creativecommons.org/licenses/by-sa/3.0/legalcode
+
+Human-readable summary:
+  https://creativecommons.org/licenses/by-sa/3.0/
+
+Source: FEVEROUS dev split — https://fever.ai/dataset/feverous.html
+Paper: Aly et al., NeurIPS 2021 — https://arxiv.org/abs/2106.05707
+Underlying Wikipedia articles referenced by evidence[*].content entries
+are (c) Wikipedia contributors, also under CC-BY-SA 3.0.
+
+If you redistribute this file (or a derivative of it), you must:
+  1. Preserve attribution to the FEVEROUS authors and Wikipedia
+     contributors.
+  2. License your redistribution under CC-BY-SA 3.0 or a compatible
+     license.
+
+This LICENSE file applies only to the contents of this directory.
+The graphrag-core code that loads and scores this fixture is MIT-
+licensed (see the repository root LICENSE and NOTICES.md).
