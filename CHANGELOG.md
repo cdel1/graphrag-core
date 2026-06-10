@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] — 2026-06-10
+
+### Added
+
+- **New `graphrag_core.eval` package — pluggable eval harness.** Offline / CI evaluation engine for any consumer building on graphrag-core. Tier 1 deterministic invariants + Tier 2 reference scoring against pluggable manifest/scorer pairs; slice-gated regression with in-repo versioned baselines. Mechanism is L1; manifest/scorer pairs plug in via the `graphrag_core.eval_pairs` entry-point group.
+  - Models (`models.py`): `SliceScore`, `SliceGateRule`, `Violation`, `BaselineFile`, `GateFailure`, `RunReport`.
+  - Protocols (`protocols.py`): `Manifest`, `ManifestLoader`, `PipelineRunner`, `Scorer`, `TierOneCheck`, `BaselineStore`, `SliceGate` (all `@runtime_checkable`).
+  - Default impls: `JSONFileBaselineStore` (sharded per manifest), `DefaultSliceGate`.
+  - Tier-1 invariant checks (`tier_one.py`): `ProvenanceCompletenessCheck`, `NoOrphanIntelligenceCheck`, `SchemaConformanceCheck`.
+  - Orchestrator (`harness.py`): `EvalHarness` with fail-fast on Tier 1 violations.
+  - Typer CLI (`cli.py`): `graphrag-core eval {run|rebaseline|list}` with cross-package pair discovery via entry points.
+- **New console script `graphrag-core`** (Typer-based) — exposes the eval harness CLI as a top-level entry point.
+
+### Changed
+
+- Adds `typer>=0.12` as a top-level dependency (with transitive: `rich`, `markdown-it-py`, `mdurl`, `annotated-types`, `shellingham`).
+
+### Rationale + spec
+
+See ADR-0030 and the eval-harness design spec in the tessera workspace (`docs/adr/0030-eval-harness-l1-placement.md`, `docs/superpowers/specs/2026-06-10-eval-harness-design.md`). DocRED manifest/scorer pair lands in a follow-up release.
+
 ## [0.6.1] — 2026-05-18
 
 > **Release-note retrospective:** This release is a clean republish of the same code first uploaded to PyPI as `0.6.0` on 2026-05-18. That earlier upload happened with an unbumped `pyproject.toml` (`version = "0.6.0"`) even though the artifact contained the v0.6.1 fix code and `__version__ = "0.6.1"` in-package. PyPI's `0.6.0` has been yanked; install `>=0.6.1`. No pre-yank `0.6.0` was ever published with the broken pre-fix code — the broken state existed only in the v0.6.0 PR before this hotfix landed.
