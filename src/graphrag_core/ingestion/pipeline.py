@@ -81,5 +81,6 @@ class IngestionPipeline:
                     ),
                     import_run_id,
                 )
+            await graph_store.flush()
 
         return chunks
