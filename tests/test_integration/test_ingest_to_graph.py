@@ -10,6 +10,7 @@ import pytest
 
 NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
+from graphrag_core.llm.base import BaseLLMClient
 from graphrag_core.models import (
     ChunkConfig,
     DocumentChunk,
@@ -26,7 +27,7 @@ from graphrag_core.models import (
 pytestmark = pytest.mark.integration
 
 
-class FakeLLMClient:
+class FakeLLMClient(BaseLLMClient):
     """Returns extraction JSON based on chunk content."""
 
     async def complete(
