@@ -22,6 +22,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   mutations are immediately visible on the same instance; durability is
   guaranteed only after `flush()` returns.
 
+### Changed
+
+- **BB4 (search): retro-grill correctness + design cleanup.** Closes the S2 deferred retro-grill candidate.
+  - `InMemorySearchEngine.fulltext_search` now uses **BM25** (TF-normalized + IDF-weighted, k1=1.5, b=0.75) instead of substring matching. The substring implementation incorrectly ranked exact-match short documents over high-term-frequency longer ones; BM25 fixes IDF weighting and term-frequency scoring. **Soft-breaking** for callers that relied on substring semantics (e.g., single-character queries no longer match arbitrary substrings — they must tokenize to real words).
+  - `InMemorySearchEngine.vector_search` now raises `ValueError` on query-embedding dimensionality mismatch (was: silent garbage cosines). Aligns with the contract written in `INTERFACE.md`.
+  - `InMemorySearchEngine.graph_search` now delegates to `GraphStore.get_related` when constructed with a new `graph_store=...` kwarg. Previously the method always returned `[]`. **Backward-compatible**: existing `InMemorySearchEngine(nodes=...)` callers still work (graph_search returns `[]` if no store is wired).
+  - `InMemorySearchEngine.hybrid_search` and `Neo4jHybridSearch.hybrid_search` now run vector + fulltext **concurrently** (`asyncio.gather`) and fetch `top_k * 2` candidates from each engine for fusion (was: sequential `await`, `top_k` from each).
+  - Both `hybrid_search` impls expose `rrf_k: int = 60` as a keyword-only parameter — exposes the RRF k constant from Cormack et al. 2009 for callers wanting to tune the rank-weighting curve.
+  - `Neo4jHybridSearch.fulltext_search` applies the `node_types` filter inside the Cypher `WHERE` clause **before** `LIMIT $top_k`. Previously the filter ran in Python after the database had already limited the result set, which could return fewer than `top_k` matches even when matching results existed.
+  - **`hybrid_search` is now formally bi-modal (vector + fulltext only).** `graph_search` is intentionally **not** fused into hybrid: it needs a `start_node_id` hybrid doesn't have, and graph-distance scores don't compose meaningfully with similarity/BM25 scores in RRF. Callers wanting tri-modal results should call `graph_search` separately and fuse via `fusion.reciprocal_rank_fusion` explicitly. `INTERFACE.md`'s earlier "vector + fulltext + (optional) graph" wording was aspirational, not implemented; it has been corrected.
+- **`SearchResult.score` contract clarified in `INTERFACE.md`.** Vector and fulltext scores have well-defined bounds (cosine `[-1,1]`, BM25 unbounded non-negative). **Hybrid (RRF) scores are unbounded and not normalized to `[0,1]`** — only ordering is meaningful. The earlier "normalized to `[0,1]`" wording was wrong for the RRF path.
+- **`filters` dict supported keys documented per-impl in `INTERFACE.md`.** Both `Neo4jHybridSearch.vector_search` and `InMemorySearchEngine.vector_search` accept `{"label": str}`; other keys are silently ignored.
+
+### Doctrine
+
+- `tessera/docs/adr/0032-bb4-hybrid-search-rrf-and-protocol-shape.md` — RRF as canonical fusion, bi-modal hybrid, dual L1 impls.
+
 ## [0.8.0] — 2026-06-10
 
 ### Added
