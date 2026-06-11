@@ -156,6 +156,18 @@ class GraphStore(Protocol):
 
     async def list_relationships(self) -> list[GraphRelationship]: ...
 
+    async def flush(self) -> None:
+        """Make all previously applied mutations durable.
+
+        Contract (ADR-0033): mutations are visible to reads on the same
+        instance immediately; durability is guaranteed only after flush()
+        returns. No-op where every mutation is already durable, or where
+        durability is out of scope (ephemeral stores). Raises
+        GraphStoreError if durability cannot be guaranteed; in-instance
+        state remains visible and retrying flush() is legal.
+        """
+        ...
+
 
 @runtime_checkable
 class CommunityDetector(Protocol):

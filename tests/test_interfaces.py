@@ -135,6 +135,9 @@ class TestGraphStoreProtocol:
             async def list_relationships(self) -> list[GraphRelationship]:
                 return []
 
+            async def flush(self) -> None:
+                return None
+
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
 
