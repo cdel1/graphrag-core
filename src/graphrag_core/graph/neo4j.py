@@ -244,7 +244,7 @@ class Neo4jGraphStore:
         return violations
 
     async def flush(self) -> None:
-        # Every mutating method commits its own auto-commit session, so all
-        # prior mutations are already durable. If writes ever move to pooled
-        # or batched sessions, the commit obligation lands here — ADR-0033.
+        # Every mutating method opens its own per-call session that commits before
+        # returning, so all prior mutations are already durable. If writes ever
+        # move to pooled or batched sessions, the commit obligation lands here — ADR-0033.
         return None
