@@ -109,6 +109,10 @@ class InMemoryGraphStore:
     async def list_relationships(self) -> list[GraphRelationship]:
         return list(self._relationships)
 
+    async def flush(self) -> None:
+        # Ephemeral store: durability is out of scope (not deferred) — ADR-0033.
+        return None
+
     async def validate_schema(self) -> list[SchemaViolation]:
         if self._schema is None:
             return []
