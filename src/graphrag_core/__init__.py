@@ -1,6 +1,6 @@
 """graphrag-core: Domain-agnostic Graph RAG framework."""
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 from graphrag_core.interfaces import (
     Agent,

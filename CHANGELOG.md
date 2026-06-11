@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+## [0.9.0] — 2026-06-11
+
+### Added
+
+- `GraphStore.flush()` — required Protocol method marking the persistence
+  boundary (ADR-0033). `graphrag_core.exceptions.GraphStoreError` seeded
+  (ADR-0006b Rule 4); `flush()` raises it when durability cannot be
+  guaranteed. `IngestionPipeline.ingest()` now flushes once at end-of-ingest.
+
+### BREAKING
+
+- `GraphStore` implementations must add `flush()` (a no-op if every mutation
+  is already durable). The write contract is now visible-now, durable-at-flush:
+  mutations are immediately visible on the same instance; durability is
+  guaranteed only after `flush()` returns.
+
 ## [0.8.0] — 2026-06-10
 
 ### Added
