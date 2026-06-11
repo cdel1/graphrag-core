@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from neo4j import AsyncGraphDatabase
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
@@ -70,13 +72,26 @@ class Neo4jHybridSearch:
     async def fulltext_search(
         self, query: str, node_types: list[str] | None = None, top_k: int = 10
     ) -> list[SearchResult]:
-        cypher = (
-            "CALL db.index.fulltext.queryNodes($index_name, $search_query) "
-            "YIELD node, score "
-            "RETURN node, score, labels(node) AS labels "
-            "ORDER BY score DESC "
-            "LIMIT $top_k"
-        )
+        if node_types:
+            for nt in node_types:
+                validate_identifier(nt, "node label")
+            label_filter = " OR ".join(f"node:{nt}" for nt in node_types)
+            cypher = (
+                "CALL db.index.fulltext.queryNodes($index_name, $search_query) "
+                "YIELD node, score "
+                f"WHERE {label_filter} "
+                "RETURN node, score, labels(node) AS labels "
+                "ORDER BY score DESC "
+                "LIMIT $top_k"
+            )
+        else:
+            cypher = (
+                "CALL db.index.fulltext.queryNodes($index_name, $search_query) "
+                "YIELD node, score "
+                "RETURN node, score, labels(node) AS labels "
+                "ORDER BY score DESC "
+                "LIMIT $top_k"
+            )
         async with self._driver.session(database=self._database) as session:
             result = await session.run(
                 cypher,
@@ -93,9 +108,6 @@ class Neo4jHybridSearch:
                 props.pop("_import_run_id", None)
                 props.pop("_updated_at", None)
                 props.pop("embedding", None)
-
-                if node_types and label not in node_types:
-                    continue
 
                 results.append(SearchResult(
                     node_id=node_id,
@@ -142,12 +154,21 @@ class Neo4jHybridSearch:
             return results
 
     async def hybrid_search(
-        self, query: str, embedding: list[float], top_k: int = 10
+        self,
+        query: str,
+        embedding: list[float],
+        top_k: int = 10,
+        *,
+        rrf_k: int = 60,
     ) -> list[SearchResult]:
-        vector_results = await self.vector_search(query_embedding=embedding, top_k=top_k)
-        fulltext_results = await self.fulltext_search(query=query, top_k=top_k)
-
-        return reciprocal_rank_fusion([vector_results, fulltext_results], top_k=top_k)
+        candidate_k = top_k * 2
+        vector_results, fulltext_results = await asyncio.gather(
+            self.vector_search(query_embedding=embedding, top_k=candidate_k),
+            self.fulltext_search(query=query, top_k=candidate_k),
+        )
+        return reciprocal_rank_fusion(
+            [vector_results, fulltext_results], top_k=top_k, k=rrf_k
+        )
 
     async def ensure_indexes(
         self,
