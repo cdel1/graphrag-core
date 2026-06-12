@@ -252,3 +252,36 @@ class TestInMemoryGraphStoreProtocol:
 
         store = InMemoryGraphStore()
         assert isinstance(store, GraphStore)
+
+
+class TestInMemoryGraphStoreStrictMerge:
+    @pytest.mark.asyncio
+    async def test_merge_relationship_missing_endpoints_raises(self):
+        from graphrag_core.exceptions import MissingEndpointError
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        rel = GraphRelationship(source_id="ghost-a", target_id="ghost-b", type="REL", properties={})
+        with pytest.raises(MissingEndpointError):
+            await store.merge_relationship(rel, "run-1")
+
+    @pytest.mark.asyncio
+    async def test_merge_relationship_missing_target_raises(self):
+        from graphrag_core.exceptions import MissingEndpointError
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="a", label="Entity", properties={}), "run-1")
+        rel = GraphRelationship(source_id="a", target_id="ghost-b", type="REL", properties={})
+        with pytest.raises(MissingEndpointError):
+            await store.merge_relationship(rel, "run-1")
+
+    @pytest.mark.asyncio
+    async def test_merge_relationship_with_both_endpoints_succeeds(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="a", label="Entity", properties={}), "run-1")
+        await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
+        rel = GraphRelationship(source_id="a", target_id="b", type="REL", properties={})
+        assert await store.merge_relationship(rel, "run-1") == "a-REL-b"

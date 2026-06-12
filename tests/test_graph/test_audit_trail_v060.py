@@ -14,6 +14,10 @@ async def test_memory_store_indexes_chunked_from_edges():
         import_run_id="run-1",
     )
     chunk_id = "chunk:1"
+    await store.merge_node(
+        GraphNode(id=chunk_id, label="Chunk", properties={}),
+        import_run_id="run-1",
+    )
     await store.merge_relationship(
         GraphRelationship(source_id=chunk_id, target_id="doc:1",
                           type="CHUNKED_FROM", properties={}),
@@ -28,6 +32,9 @@ async def test_memory_store_indexes_chunked_from_edges():
 async def test_chunked_from_index_updates_on_remerge():
     """A re-merged CHUNKED_FROM edge (same triple) must keep the index in sync."""
     store = InMemoryGraphStore()
+
+    await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
+    await store.merge_node(GraphNode(id="doc:1", label="Document", properties={}), "run-1")
 
     # First merge: chunk:1 -> doc:1 (insert path)
     await store.merge_relationship(
@@ -54,6 +61,10 @@ async def test_chunked_from_index_updates_on_remerge():
 async def test_chunked_from_index_different_target_is_new_row():
     """Re-merging with a different target_id creates a second row; both are indexed."""
     store = InMemoryGraphStore()
+
+    await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
+    await store.merge_node(GraphNode(id="doc:1", label="Document", properties={}), "run-1")
+    await store.merge_node(GraphNode(id="doc:2", label="Document", properties={}), "run-1")
 
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
@@ -89,6 +100,8 @@ async def test_memory_audit_trail_reaches_document():
     await store.merge_node(GraphNode(id="claim:1", label="Claim", properties={}),
                            "run-1")
     await store.record_provenance("claim:1", "chunk:1", "run-1")
+    # Chunk node must exist before CHUNKED_FROM edge
+    await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
     # Chunk -> Document edge
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
@@ -142,6 +155,7 @@ async def test_memory_audit_trail_deduplicates_document_step():
     await store.record_provenance("claim:1", "chunk:1", "run-1")
     await store.record_provenance("claim:1", "chunk:2", "run-1")
     for chunk_id in ("chunk:1", "chunk:2"):
+        await store.merge_node(GraphNode(id=chunk_id, label="Chunk", properties={}), "run-1")
         await store.merge_relationship(
             GraphRelationship(source_id=chunk_id, target_id="doc:1",
                               type="CHUNKED_FROM", properties={}),

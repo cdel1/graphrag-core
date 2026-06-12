@@ -46,6 +46,7 @@ async def _make_anchor_with_neighbors_in_periods(
             chk = f"chunk:{chunk_counter}"
             chunk_counter += 1
             await store.merge_node(GraphNode(id=cid, label="Claim", properties={}), "run-1")
+            await store.merge_node(GraphNode(id=chk, label="Chunk", properties={}), "run-1")
             await store.record_provenance(cid, chk, "run-1")
             await store.merge_relationship(
                 GraphRelationship(source_id=chk, target_id=doc_id,
@@ -70,6 +71,7 @@ async def test_resolve_period_walks_audit_trail():
         "run-1",
     )
     await store.merge_node(GraphNode(id="claim:1", label="Claim", properties={}), "run-1")
+    await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
     await store.record_provenance("claim:1", "chunk:1", "run-1")
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
@@ -124,6 +126,7 @@ async def test_get_node_history_rel_type_filter():
         "run-1",
     )
     await store.merge_node(GraphNode(id="stk:1", label="Stakeholder", properties={}), "run-1")
+    await store.merge_node(GraphNode(id="chunk:99", label="Chunk", properties={}), "run-1")
     await store.record_provenance("stk:1", "chunk:99", "run-1")
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:99", target_id="doc:other",

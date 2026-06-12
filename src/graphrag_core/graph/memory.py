@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
     AuditTrail,
     GraphNode,
@@ -32,6 +33,8 @@ class InMemoryGraphStore:
         return node.id
 
     async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -> str:
+        if rel.source_id not in self._nodes or rel.target_id not in self._nodes:
+            raise MissingEndpointError(rel.source_id, rel.target_id)
         for i, existing in enumerate(self._relationships):
             if (
                 existing.source_id == rel.source_id
