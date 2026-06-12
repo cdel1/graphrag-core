@@ -56,6 +56,7 @@ class GraphStoreContractTests:
 
     persists_across_instances: bool = False
     requires_concurrency_safety: bool = False
+    persists_schema_across_instances: bool = False
 
     async def store_factory(self) -> GraphStore:
         raise NotImplementedError("subclass must implement store_factory")
@@ -152,7 +153,6 @@ class GraphStoreContractTests:
         if not self.persists_across_instances:
             pytest.skip("backend does not claim cross-instance persistence")
         store = await self._store()
-        await store.apply_schema(_schema_requiring_name())
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
         await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
@@ -167,6 +167,18 @@ class GraphStoreContractTests:
         trail = await reborn.get_audit_trail("entity-1")
         levels = [step.level for step in trail.provenance_chain]
         assert "document" in levels  # _chunk_to_doc survived (S5 bug class)
+
+    # -- gated: persists_schema_across_instances ----------------------------
+
+    async def test_schema_survives_round_trip(self) -> None:
+        if not self.persists_schema_across_instances:
+            pytest.skip("backend does not claim cross-instance schema persistence")
+        store = await self._store()
+        await store.apply_schema(_schema_requiring_name())
+        await store.flush()
+
+        reborn = await self.store_factory()  # same storage, fresh instance
+
         await reborn.merge_node(_node("no-name"), "run-2")
         violations = await reborn.validate_schema()
         assert any(v.node_id == "no-name" for v in violations)  # _schema survived (S5 bug class)

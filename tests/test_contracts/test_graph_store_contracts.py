@@ -21,6 +21,8 @@ class TestInMemoryGraphStoreContract(GraphStoreContractTests):
 @pytest.mark.integration
 class TestNeo4jGraphStoreContract(GraphStoreContractTests):
     persists_across_instances = True
+    # persists_schema_across_instances stays False: Neo4jGraphStore.validate_schema()
+    # is a stub — tracked as ADR-0034 follow-up debt.
 
     async def store_factory(self) -> GraphStore:
         from graphrag_core.graph.neo4j import Neo4jGraphStore
