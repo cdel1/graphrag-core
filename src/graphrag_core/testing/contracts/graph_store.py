@@ -12,10 +12,15 @@ discovers the contract tests::
 ``store_factory`` must return a store bound to the same underlying storage
 on every call within one test (this is what makes the lifecycle round-trip
 assertable for persistent backends). The suite calls ``clear()`` itself —
-the factory does not need to return an empty store.
+the factory does not need to return an empty store. Tests may call ``store_factory`` twice within one test — once to write,
+once to obtain a fresh instance reading back the same physical storage; a
+factory that returns a brand-new empty store on each call will fail the
+round-trip tests.
 
-Requires pytest-asyncio with ``asyncio_mode = "auto"`` (or equivalent
-explicit marks in the subclass's conftest).
+Requires pytest-asyncio with ``asyncio_mode = "auto"`` in the consumer's
+pyproject.toml or pytest.ini. Strict mode is not supported: the async test
+methods live on this base class and cannot be marked per-test from a
+subclass.
 """
 
 from __future__ import annotations
@@ -54,9 +59,9 @@ def _schema_requiring_name() -> OntologySchema:
 class GraphStoreContractTests:
     """Subclass and implement `store_factory` to verify GraphStore conformance."""
 
-    persists_across_instances: bool = False
-    requires_concurrency_safety: bool = False
-    persists_schema_across_instances: bool = False
+    persists_across_instances: bool = False  # enables lifecycle round-trip (state survives re-instantiation)
+    requires_concurrency_safety: bool = False  # enables interleaved-writers test
+    persists_schema_across_instances: bool = False  # enables schema round-trip via validate_schema
 
     async def store_factory(self) -> GraphStore:
         raise NotImplementedError("subclass must implement store_factory")
@@ -96,7 +101,8 @@ class GraphStoreContractTests:
         with pytest.raises(MissingEndpointError):
             await store.merge_relationship(_rel("ghost-src", "a"), "run-1")
         await store.merge_node(_node("b"), "run-1")
-        assert await store.merge_relationship(_rel("a", "b"), "run-1")
+        rel_id = await store.merge_relationship(_rel("a", "b"), "run-1")
+        assert rel_id is not None
 
     async def test_merge_node_idempotent(self) -> None:
         store = await self._store()
@@ -128,6 +134,7 @@ class GraphStoreContractTests:
         store = await self._store()
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
+        # Document traversal is expected to follow CHUNKED_FROM edges (ADR-0001).
         await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
         await store.merge_node(_node("entity-1", name="E"), "run-1")
         await store.record_provenance("entity-1", "chunk-1", "run-1")
