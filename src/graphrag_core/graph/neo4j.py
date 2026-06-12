@@ -248,7 +248,8 @@ class Neo4jGraphStore:
 
     async def clear(self) -> None:
         async with self._driver.session(database=self._database) as session:
-            await session.run("MATCH (n) DETACH DELETE n")
+            result = await session.run("MATCH (n) DETACH DELETE n")
+            await result.consume()
 
     async def flush(self) -> None:
         # Every mutating method opens its own per-call session that commits before
