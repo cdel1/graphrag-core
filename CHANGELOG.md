@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-06-12
+
+### Added
+
+- `graphrag_core.testing.contracts.graph_store.GraphStoreContractTests` —
+  subclass-and-run conformance suite for any GraphStore implementation
+  (ADR-0034, realising ADR-0006b Rule 9 for BB3). Six mandatory tests plus
+  three capability-gated ones (`persists_across_instances`,
+  `persists_schema_across_instances`, `requires_concurrency_safety`).
+  pytest is an import-time requirement of `graphrag_core.testing` only —
+  not a runtime dependency.
+- `GraphStore.clear()` — required Protocol method: remove all nodes,
+  relationships, provenance, and applied schema.
+- `graphrag_core.exceptions.MissingEndpointError` (subclass of
+  `GraphStoreError`), with `source_id` / `target_id` attributes.
+
+### BREAKING
+
+- `merge_relationship` is now canonically a **strict upsert** (ADR-0034):
+  a missing source or target node raises `MissingEndpointError` (was:
+  silent append on InMemory — the v0.6.0 incident shape — and silent
+  `None`/`TypeError` on Neo4j); re-merging the same
+  `(source_id, target_id, type)` updates properties in place.
+- `GraphStore` implementations must add `clear()`.
+- Callers that relied on permissive merges must merge endpoint nodes first
+  or catch `MissingEndpointError` at their extraction boundary.
+
 ## [0.9.0] — 2026-06-11
 
 ### Added
