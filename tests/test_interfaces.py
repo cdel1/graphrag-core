@@ -138,6 +138,9 @@ class TestGraphStoreProtocol:
             async def flush(self) -> None:
                 return None
 
+            async def clear(self) -> None:
+                return None
+
         store: GraphStore = MyStore()
         assert isinstance(store, GraphStore)
 

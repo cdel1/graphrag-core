@@ -116,6 +116,13 @@ class InMemoryGraphStore:
         # Ephemeral store: durability is out of scope (not deferred) — ADR-0033.
         return None
 
+    async def clear(self) -> None:
+        self._nodes.clear()
+        self._relationships.clear()
+        self._provenance.clear()
+        self._chunk_to_doc.clear()
+        self._schema = None
+
     async def validate_schema(self) -> list[SchemaViolation]:
         if self._schema is None:
             return []

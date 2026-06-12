@@ -134,7 +134,12 @@ class GraphStore(Protocol):
 
     async def merge_node(self, node: GraphNode, import_run_id: str) -> str: ...
 
-    async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -> str: ...
+    async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -> str:
+        """Strict upsert (ADR-0034): raises MissingEndpointError if the source
+        or target node does not exist; re-merging the same
+        (source_id, target_id, type) updates properties in place — edges
+        never duplicate."""
+        ...
 
     async def record_provenance(self, node_id: str, chunk_id: str, import_run_id: str) -> None: ...
 
@@ -165,6 +170,14 @@ class GraphStore(Protocol):
         durability is out of scope (ephemeral stores). Raises
         GraphStoreError if durability cannot be guaranteed; in-instance
         state remains visible and retrying flush() is legal.
+        """
+        ...
+
+    async def clear(self) -> None:
+        """Remove all nodes, relationships, provenance, and applied schema.
+
+        Contract (ADR-0034): after clear() returns, every public read
+        method reflects the empty state.
         """
         ...
 
