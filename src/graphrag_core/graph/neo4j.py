@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
+from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
     AuditTrail,
     GraphNode,
@@ -81,6 +82,8 @@ class Neo4jGraphStore:
                 now=datetime.now(timezone.utc).isoformat(),
             )
             record = await result.single()
+            if record is None:
+                raise MissingEndpointError(rel.source_id, rel.target_id)
             return record["id"]
 
     async def record_provenance(self, node_id: str, chunk_id: str, import_run_id: str) -> None:
@@ -242,6 +245,11 @@ class Neo4jGraphStore:
     async def validate_schema(self) -> list[SchemaViolation]:
         violations: list[SchemaViolation] = []
         return violations
+
+    async def clear(self) -> None:
+        async with self._driver.session(database=self._database) as session:
+            result = await session.run("MATCH (n) DETACH DELETE n")
+            await result.consume()
 
     async def flush(self) -> None:
         # Every mutating method opens its own per-call session that commits before

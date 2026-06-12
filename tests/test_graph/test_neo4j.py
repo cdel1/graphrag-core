@@ -8,6 +8,7 @@ import pytest
 
 NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
+from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
     GraphNode,
     GraphRelationship,
@@ -159,3 +160,31 @@ class TestNeo4jProtocol:
 
         store = Neo4jGraphStore()
         assert isinstance(store, GraphStore)
+
+
+class TestNeo4jStrictMerge:
+    @pytest.mark.asyncio
+    async def test_merge_relationship_missing_endpoint_raises(self, store):
+        rel = GraphRelationship(source_id="ghost-a", target_id="ghost-b", type="REL", properties={})
+        with pytest.raises(MissingEndpointError):
+            await store.merge_relationship(rel, import_run_id="run-1")
+
+    @pytest.mark.asyncio
+    async def test_merge_relationship_with_endpoints_succeeds(self, store):
+        await store.merge_node(GraphNode(id="a", label="Entity", properties={}), "run-1")
+        await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
+        rel = GraphRelationship(source_id="a", target_id="b", type="REL", properties={})
+        assert await store.merge_relationship(rel, import_run_id="run-1") == "a-REL-b"
+
+
+class TestNeo4jClear:
+    @pytest.mark.asyncio
+    async def test_clear_removes_everything(self, store):
+        await store.merge_node(GraphNode(id="a", label="Entity", properties={}), "run-1")
+        await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
+        await store.merge_relationship(
+            GraphRelationship(source_id="a", target_id="b", type="REL", properties={}), "run-1"
+        )
+        await store.clear()
+        assert await store.list_nodes() == []
+        assert await store.count_relationships() == 0
