@@ -12,7 +12,7 @@ def test_graph_store_error_carries_message() -> None:
     assert "disk full" in str(err)
 
 
-def test_missing_endpoint_error_is_graph_store_error():
+def test_missing_endpoint_error_is_graph_store_error() -> None:
     exc = MissingEndpointError(source_id="a", target_id="b")
     assert isinstance(exc, GraphStoreError)
     assert exc.source_id == "a"

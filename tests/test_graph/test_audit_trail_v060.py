@@ -100,7 +100,6 @@ async def test_memory_audit_trail_reaches_document():
     await store.merge_node(GraphNode(id="claim:1", label="Claim", properties={}),
                            "run-1")
     await store.record_provenance("claim:1", "chunk:1", "run-1")
-    # Chunk node must exist before CHUNKED_FROM edge
     await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
     # Chunk -> Document edge
     await store.merge_relationship(

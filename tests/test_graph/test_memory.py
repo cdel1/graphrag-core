@@ -308,6 +308,17 @@ class TestInMemoryGraphStoreStrictMerge:
             await store.merge_relationship(rel, "run-1")
 
     @pytest.mark.asyncio
+    async def test_merge_relationship_missing_source_raises(self):
+        from graphrag_core.exceptions import MissingEndpointError
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
+        rel = GraphRelationship(source_id="ghost-a", target_id="b", type="REL", properties={})
+        with pytest.raises(MissingEndpointError):
+            await store.merge_relationship(rel, "run-1")
+
+    @pytest.mark.asyncio
     async def test_merge_relationship_with_both_endpoints_succeeds(self):
         from graphrag_core.graph.memory import InMemoryGraphStore
 
