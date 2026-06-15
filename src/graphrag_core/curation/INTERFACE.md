@@ -3,7 +3,7 @@
 **Protocols:** `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 196–220
 **Default implementations:** Partial — `DetectionLayer` impl ([`detection.py`](detection.py)) ships, `LLMCurationLayer` and `ApprovalGateway` are **Protocol-only** (no default concrete class yet; see `repos/graphrag-core/CLAUDE.md` "Architecture" table).
-**Vocabulary:** Tier 1/2/3 discipline, `CurationIssue`, `ApprovalBatch` — see `tessera/CONTEXT.md`
+**Vocabulary:** `CurationIssue`, `ApprovalBatch`, three-Layer governance — defined below.
 
 ---
 
@@ -91,9 +91,15 @@ async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]: ...
 
 ---
 
-## `ApprovalGateway`
+## Layer 3 — the attestation contract
 
-The decisive filter. Tier 3 mutations only land after a human approves.
+Layer 3 is a **contract**, not a Protocol shape. Every Layer-3 mutation must produce a promotion event recording: attestor kind (distinguishing human vs. agent), attestor id, rationale, supporting excerpts, and timestamp; plus an immutable audit record of the mutation itself.
+
+`ApprovalGateway` (below) ships as one reference Protocol shape that satisfies this contract — a batch-and-apply model where consumers submit issue lists, fetch status, then apply approved mutations. It is non-normative. Consumers may implement `ApprovalGateway`, build an alternative surface (e.g., continuous editing, async queue, agent-driven review), or use any other shape that produces a contract-satisfying promotion event; graphrag-core takes no opinion on which.
+
+## `ApprovalGateway` (reference shape — batch-and-apply category)
+
+The reference Protocol shape for the batch-and-apply Layer-3 category. Implements the contract above.
 
 ### Interface
 
@@ -118,10 +124,6 @@ async def apply_approved(self, batch_id: str) -> ApplyResult: ...
 ### Performance invariants
 
 - Implementation-specific. CLI gateway is per-issue interactive; webhook gateway is async.
-
-### TfT integration
-
-Lacuna's Phase 7 TfT workflow uses a file-based `ReportState` model (`repos/lacuna/src/lacuna/report/state.py`) as the operational layer of the approval pipeline for the *report flow* specifically. The `ApprovalGateway` Protocol covers a broader class of curation mutations (entity merges, topic creations, divergence confirmations) and remains unimplemented at the Protocol level — the TfT spec deliberately scoped down to file-based persistence for the report use case (`2026-05-03-phase7-tft-workflow-design.md` decision log).
 
 ---
 
