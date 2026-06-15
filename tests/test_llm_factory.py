@@ -71,3 +71,9 @@ class TestFromEnvUnknown:
         assert "'gemini'" in str(excinfo.value)
         assert "anthropic" in str(excinfo.value).lower()
         assert "openai" in str(excinfo.value).lower()
+
+
+class TestPackageExport:
+    def test_from_env_importable_from_package(self):
+        """from graphrag_core.llm import from_env should work."""
+        from graphrag_core.llm import from_env  # noqa: F401
