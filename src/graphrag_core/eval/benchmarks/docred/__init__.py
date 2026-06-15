@@ -34,3 +34,24 @@ def docred_pair() -> ManifestScorerPair:
         ],
         scorer=DocREDScorer(),
     )
+
+
+@register_pair("docred_anthropic")
+def docred_anthropic_pair() -> ManifestScorerPair:
+    manifest = DocREDManifestLoader().load(
+        _FIXTURE_PATH,
+        model_pin={"extraction": "claude-sonnet-4-6", "seed": 42},
+    )
+    return ManifestScorerPair(
+        manifest=manifest,
+        corpus_path=_FIXTURE_PATH,
+        pipeline_runner=DocREDPipelineRunner(),
+        tier_one_checks=[
+            ProvenanceCompletenessCheck(),
+            NoOrphanIntelligenceCheck(),
+            SchemaConformanceCheck(
+                allowed_labels={"Claim", "Entity", "Document", "Chunk", "Stakeholder"}
+            ),
+        ],
+        scorer=DocREDScorer(),
+    )

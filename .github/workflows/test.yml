@@ -26,7 +26,7 @@ jobs:
 
       - name: Boundary check — no domain leakage
         run: |
-          FORBIDDEN="MonitoringTopic|Perspective|SubjectArea|Interview|Dalux|CapturePoint|InvestorAlert|SollIst|EY|Parthenon|Prague"
+          FORBIDDEN="MonitoringTopic|Perspective|SubjectArea|Interview|Dalux|CapturePoint|InvestorAlert|SollIst|\bEY\b|Parthenon|Prague"
           if grep -rn -E "$FORBIDDEN" src/; then
             echo "DOMAIN LEAKAGE DETECTED in graphrag-core"
             exit 1

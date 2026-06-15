@@ -75,3 +75,14 @@ class TestAnthropicLLMClient:
         with patch("graphrag_core.llm.anthropic.AsyncAnthropic"):
             client = AnthropicLLMClient(api_key="test-key")
             assert isinstance(client, LLMClient)
+
+
+class TestAnthropicLLMClientDefaults:
+    def test_default_model_is_sonnet_4_6(self):
+        """Substrate default model: claude-sonnet-4-6 (workhorse tier)."""
+        from graphrag_core.llm.anthropic import AnthropicLLMClient
+
+        from unittest.mock import patch
+        with patch("graphrag_core.llm.anthropic.AsyncAnthropic"):
+            client = AnthropicLLMClient(api_key="test")
+        assert client._model == "claude-sonnet-4-6"

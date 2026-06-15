@@ -31,7 +31,11 @@ class FEVEROUSManifest(BaseModel):
 
 
 class FEVEROUSManifestLoader:
-    def load(self, path: Path) -> FEVEROUSManifest:
+    def load(
+        self,
+        path: Path,
+        model_pin: dict[str, Any] | None = None,
+    ) -> FEVEROUSManifest:
         gold_claims: list[FEVEROUSGoldClaim] = []
         with path.open() as f:
             for line in f:
@@ -52,6 +56,6 @@ class FEVEROUSManifestLoader:
             version="feverous@2026-06-10",
             slice_axes=["label", "challenge"],
             token_budget=200_000,
-            model_pin={"extraction": "gpt-4o-mini", "seed": 42},
+            model_pin=model_pin if model_pin is not None else {"extraction": "gpt-4o-mini", "seed": 42},
             gold_claims=gold_claims,
         )

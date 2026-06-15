@@ -3,13 +3,13 @@
 **Protocol:** `LLMClient`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 72–90
 **Default implementations:** [`anthropic.py`](anthropic.py), [`openai.py`](openai.py), [`base.py`](base.py)
-**Vocabulary:** see `tessera/CONTEXT.md`
+**Vocabulary:** `LLMClient` (provider-agnostic Protocol), reference implementation (per-provider class exercised by the contract suite), tuned-default provider (the single provider whose prompts + model defaults receive active tuning attention at a given time), env-var-selected factory (`graphrag_core.llm.from_env()` reading `GRAPHRAG_LLM_PROVIDER`).
 
 ---
 
 ## `LLMClient`
 
-Provider-agnostic interface to a chat-completion-style LLM. Used by `LLMExtractionEngine`, `LLMCurationLayer`, and (in Lacuna) the `GenerationLLM` Protocol for report writing.
+Provider-agnostic interface to a chat-completion-style LLM. Used by `LLMExtractionEngine`, `LLMCurationLayer`, and domain layers implementing the `GenerationLLM` Protocol for report writing.
 
 ### Interface
 
@@ -57,16 +57,33 @@ async def complete_json(
 
 ### Structured-output note
 
-graphrag-core specifically uses `strict: False` in the OpenAI client because the extraction schema includes `dict[str, Any]` properties on `ExtractedNode.properties`, which is incompatible with OpenAI's `strict: True` mode. Pydantic validates client-side instead. See `repos/lacuna/CLAUDE.md` "Gotchas."
+graphrag-core specifically uses `strict: False` in the OpenAI client because the extraction schema includes `dict[str, Any]` properties on `ExtractedNode.properties`, which is incompatible with OpenAI's `strict: True` mode. Pydantic validates client-side instead.
 
 ### Reference impls
 
 - `AnthropicLLMClient` — uses Anthropic's tool-use loop for structured output.
 - `OpenAILLMClient` — uses `response_format={"type": "json_schema"}` when `complete_json` is called.
 
-Both implement the Protocol identically from the caller's perspective. Lacuna swaps providers via env var (`LLM_PROVIDER`), no code change.
+Both implement the Protocol identically from the caller's perspective. Consumers select a provider via the factory `graphrag_core.llm.from_env()`, which reads the `GRAPHRAG_LLM_PROVIDER` env var (`anthropic` (default) or `openai`). Consumers needing per-call provider override or mixed providers instantiate the concrete client directly.
+
+The factory's default reflects the framework's currently *tuned-default provider* (Anthropic as of v0.11). The non-tuned reference impl remains Protocol-compliant and exercised by the contract suite; its prompt-quality and eval baselines are not actively maintained.
 
 ---
+
+## Factory
+
+```python
+from graphrag_core.llm import from_env
+
+llm = from_env()  # AnthropicLLMClient by default
+```
+
+`from_env()` reads:
+
+- `GRAPHRAG_LLM_PROVIDER`: `"anthropic"` (default) or `"openai"`. Case-insensitive. Unknown values raise `ValueError`.
+- Provider-specific API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are read by the provider SDK itself; the factory does not validate them.
+
+To add a new provider's factory branch, edit `graphrag_core/llm/factory.py`. The factory deliberately stays minimal — no DI framework, no plugin discovery, no per-call provider override. Consumers needing more bypass it.
 
 ## Implementation skeleton (new provider)
 
