@@ -11,7 +11,7 @@ class AnthropicLLMClient:
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-6",
         api_key: str | None = None,
     ) -> None:
         self._model = model
