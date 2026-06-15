@@ -31,6 +31,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   external env var (`LLM_PROVIDER`) drove provider selection was
   removed — the actual mechanism is now `GRAPHRAG_LLM_PROVIDER`
   consumed by `from_env()`.
+- **DocRED and FEVEROUS pipeline runners now invoke the configured
+  `LLMClient`** instead of being Band-3 stubs. Each runner takes an
+  `llm` constructor argument; the pair registrations build the
+  appropriate provider client from the manifest's `model_pin` and
+  inject it. The L1 example benchmarks now produce a real provider-
+  portability signal: the OpenAI-pinned and Anthropic-pinned pairs
+  hit different model providers and the per-slice deltas reflect
+  actual extraction differences.
+  - FEVEROUS runner asks the model to classify each claim as
+    `SUPPORTS` / `REFUTES` / `NOT ENOUGH INFO` from world knowledge
+    and emits a `:Claim` node with the verdict.
+  - DocRED runner asks the model to extract typed relations (Wikidata
+    PIDs) between the entities named in the gold vertex set and emits
+    `:Entity` endpoints + relationships. Absolute precision/recall is
+    expected to be low without retrieval; the benchmark's purpose at
+    L1 is portability comparison, not state-of-the-art extraction.
+- The `0.1.0.json` baseline files under `eval/baselines/docred@2026-06-10/`
+  and `eval/baselines/feverous@2026-06-10/` were regenerated against
+  the LLM-driven runners. Stub-era 0.0 baselines have been replaced
+  with real OpenAI numbers.
+
+### Notes
+
+- **FEVEROUS `NOT ENOUGH INFO` (NEI) slice is excluded from comparative
+  gating in the closed-book pipeline shipped at L1.** The FEVEROUS NEI
+  label is a property of *evidence availability in Wikipedia* — it
+  means annotators couldn't verify or refute the claim from the bound
+  evidence pool. The L1 runner here is *closed-book* (no retrieval),
+  so the model can only express confidence in the claim's truth, not
+  in Wikipedia coverage. The two are different signals; treating
+  per-slice ΔR on NEI as a portability gate measures model hedging
+  tendency, not extraction capability. Comparative gating in this
+  release uses the `SUPPORTS` and `REFUTES` labels (plus the
+  per-challenge slices) where closed-book inference produces a
+  meaningful signal. Future runners that consume FEVEROUS evidence
+  before classifying can restore the NEI slice to the gate.
+
+### Internal
+
+- CI boundary check regex word-boundaried the `EY` token; previously
+  matched the substring inside `*_API_KEY` env-var names.
 
 ## [0.10.0] — 2026-06-12
 

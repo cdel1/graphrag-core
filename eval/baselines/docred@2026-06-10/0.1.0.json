@@ -1,7 +1,7 @@
 {
   "harness_version": "0.1.0",
   "manifest_version": "docred@2026-06-10",
-  "created_at": "2026-06-12T13:06:36.579722Z",
+  "created_at": "2026-06-15T19:50:27.897488Z",
   "created_by": "rebaseline",
   "model_pin": {
     "extraction": "gpt-4o-mini",
@@ -9,20 +9,20 @@
   },
   "slice_scores": {
     "relation_type=P17": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.26666666666666666,
+      "recall": 0.07692307692307693,
       "false_positive_rate": null,
       "n": 104
     },
     "relation_type=P127": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.023255813953488372,
+      "recall": 0.3333333333333333,
       "false_positive_rate": null,
       "n": 3
     },
     "relation_type=P577": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.1590909090909091,
+      "recall": 0.5,
       "false_positive_rate": null,
       "n": 14
     },
@@ -45,8 +45,8 @@
       "n": 1
     },
     "relation_type=P175": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.375,
+      "recall": 0.2727272727272727,
       "false_positive_rate": null,
       "n": 11
     },
@@ -81,32 +81,32 @@
       "n": 13
     },
     "relation_type=P19": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.47058823529411764,
+      "recall": 0.7272727272727273,
       "false_positive_rate": null,
       "n": 11
     },
     "relation_type=P569": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.46153846153846156,
       "false_positive_rate": null,
       "n": 26
     },
     "relation_type=P20": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
       "false_positive_rate": null,
       "n": 6
     },
     "relation_type=P570": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.36363636363636365,
       "false_positive_rate": null,
       "n": 22
     },
     "relation_type=P27": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.5384615384615384,
+      "recall": 0.13725490196078433,
       "false_positive_rate": null,
       "n": 51
     },
@@ -129,20 +129,20 @@
       "n": 3
     },
     "relation_type=P571": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.07142857142857142,
       "false_positive_rate": null,
       "n": 14
     },
     "relation_type=P131": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.3333333333333333,
+      "recall": 0.02631578947368421,
       "false_positive_rate": null,
       "n": 38
     },
     "relation_type=P50": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.14285714285714285,
+      "recall": 0.125,
       "false_positive_rate": null,
       "n": 8
     },
@@ -159,20 +159,20 @@
       "n": 4
     },
     "relation_type=P123": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
       "false_positive_rate": null,
       "n": 2
     },
     "relation_type=P178": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.5,
+      "recall": 0.25,
       "false_positive_rate": null,
       "n": 4
     },
     "relation_type=P400": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
       "false_positive_rate": null,
       "n": 6
     },
@@ -219,8 +219,8 @@
       "n": 3
     },
     "relation_type=P279": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.14285714285714285,
       "false_positive_rate": null,
       "n": 7
     },
@@ -237,8 +237,8 @@
       "n": 1
     },
     "relation_type=P3373": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.07692307692307693,
+      "recall": 0.08333333333333333,
       "false_positive_rate": null,
       "n": 12
     },
@@ -273,20 +273,20 @@
       "n": 4
     },
     "relation_type=P54": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.35714285714285715,
+      "recall": 0.29411764705882354,
       "false_positive_rate": null,
       "n": 17
     },
     "relation_type=P69": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.45454545454545453,
+      "recall": 1.0,
       "false_positive_rate": null,
       "n": 5
     },
     "relation_type=P26": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.5,
+      "recall": 0.5,
       "false_positive_rate": null,
       "n": 2
     },
@@ -309,8 +309,8 @@
       "n": 5
     },
     "relation_type=P102": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.14285714285714285,
+      "recall": 0.2,
       "false_positive_rate": null,
       "n": 10
     },
@@ -345,14 +345,14 @@
       "n": 12
     },
     "relation_type=P140": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
       "false_positive_rate": null,
       "n": 6
     },
     "relation_type=P166": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.2,
+      "recall": 0.5,
       "false_positive_rate": null,
       "n": 2
     },
