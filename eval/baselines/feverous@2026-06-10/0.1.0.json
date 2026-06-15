@@ -1,7 +1,7 @@
 {
   "harness_version": "0.1.0",
   "manifest_version": "feverous@2026-06-10",
-  "created_at": "2026-06-12T13:06:37.093305Z",
+  "created_at": "2026-06-15T20:00:13.277282Z",
   "created_by": "rebaseline",
   "model_pin": {
     "extraction": "gpt-4o-mini",
@@ -9,56 +9,56 @@
   },
   "slice_scores": {
     "label=NOT ENOUGH INFO": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.25,
+      "recall": 0.375,
       "false_positive_rate": null,
       "n": 16
     },
     "label=SUPPORTS": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.3333333333333333,
+      "recall": 0.2777777777777778,
       "false_positive_rate": null,
       "n": 18
     },
     "label=REFUTES": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.6363636363636364,
+      "recall": 0.4375,
       "false_positive_rate": null,
       "n": 16
     },
     "challenge=Search terms not in claim": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.3333333333333333,
+      "recall": 0.3333333333333333,
       "false_positive_rate": null,
       "n": 9
     },
     "challenge=Numerical Reasoning": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.125,
+      "recall": 0.125,
       "false_positive_rate": null,
       "n": 8
     },
     "challenge=Other": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.75,
+      "recall": 0.75,
       "false_positive_rate": null,
       "n": 8
     },
     "challenge=Entity Disambiguation": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.5555555555555556,
+      "recall": 0.5555555555555556,
       "false_positive_rate": null,
       "n": 9
     },
     "challenge=Combining Tables and Text": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.125,
+      "recall": 0.125,
       "false_positive_rate": null,
       "n": 8
     },
     "challenge=Multi-hop Reasoning": {
-      "precision": 0.0,
-      "recall": 0.0,
+      "precision": 0.25,
+      "recall": 0.25,
       "false_positive_rate": null,
       "n": 8
     }
