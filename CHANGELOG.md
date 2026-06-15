@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-06-15
+
+### Added
+
+- `graphrag_core.llm.from_env()` — env-var-selected factory returning a
+  configured `LLMClient`. Reads `GRAPHRAG_LLM_PROVIDER` (`"anthropic"`
+  (default) or `"openai"`, case-insensitive). Unknown values raise
+  `ValueError`. API-key validation is delegated to the provider SDK.
+- Two new eval pairs: `docred_anthropic` and `feverous_anthropic`,
+  mirroring the existing OpenAI-pinned `docred` and `feverous` pairs
+  but pinned to `claude-sonnet-4-6`. Use side-by-side for
+  provider-portability sanity checks.
+
+### Changed
+
+- `AnthropicLLMClient` default model: `claude-sonnet-4-20250514` →
+  `claude-sonnet-4-6`. Consumers relying on the previous default
+  should pass `model="claude-sonnet-4-20250514"` explicitly.
+- `llm/INTERFACE.md` rewritten to document the new factory + the
+  framework's "tuned-default provider" concept (per-version, one
+  provider receives active prompt + model tuning; other reference
+  impls remain Protocol-compliant). The previous claim that an
+  external env var (`LLM_PROVIDER`) drove provider selection was
+  removed — the actual mechanism is now `GRAPHRAG_LLM_PROVIDER`
+  consumed by `from_env()`.
+
 ## [0.10.0] — 2026-06-12
 
 ### Added
