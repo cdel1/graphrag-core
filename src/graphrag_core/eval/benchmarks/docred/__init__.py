@@ -20,11 +20,14 @@ _FIXTURE_PATH = Path(__file__).resolve().parents[5] / "eval/fixtures/docred/samp
 
 @register_pair("docred")
 def docred_pair() -> ManifestScorerPair:
+    from graphrag_core.llm.openai import OpenAILLMClient
+
     manifest = DocREDManifestLoader().load(_FIXTURE_PATH)
+    llm = OpenAILLMClient(model=manifest.model_pin["extraction"])
     return ManifestScorerPair(
         manifest=manifest,
         corpus_path=_FIXTURE_PATH,
-        pipeline_runner=DocREDPipelineRunner(),
+        pipeline_runner=DocREDPipelineRunner(llm=llm),
         tier_one_checks=[
             ProvenanceCompletenessCheck(),
             NoOrphanIntelligenceCheck(),
@@ -38,14 +41,17 @@ def docred_pair() -> ManifestScorerPair:
 
 @register_pair("docred_anthropic")
 def docred_anthropic_pair() -> ManifestScorerPair:
+    from graphrag_core.llm.anthropic import AnthropicLLMClient
+
     manifest = DocREDManifestLoader().load(
         _FIXTURE_PATH,
         model_pin={"extraction": "claude-sonnet-4-6", "seed": 42},
     )
+    llm = AnthropicLLMClient(model=manifest.model_pin["extraction"])
     return ManifestScorerPair(
         manifest=manifest,
         corpus_path=_FIXTURE_PATH,
-        pipeline_runner=DocREDPipelineRunner(),
+        pipeline_runner=DocREDPipelineRunner(llm=llm),
         tier_one_checks=[
             ProvenanceCompletenessCheck(),
             NoOrphanIntelligenceCheck(),

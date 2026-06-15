@@ -20,11 +20,14 @@ _FIXTURE_PATH = Path(__file__).resolve().parents[5] / "eval/fixtures/feverous/sa
 
 @register_pair("feverous")
 def feverous_pair() -> ManifestScorerPair:
+    from graphrag_core.llm.openai import OpenAILLMClient
+
     manifest = FEVEROUSManifestLoader().load(_FIXTURE_PATH)
+    llm = OpenAILLMClient(model=manifest.model_pin["extraction"])
     return ManifestScorerPair(
         manifest=manifest,
         corpus_path=_FIXTURE_PATH,
-        pipeline_runner=FEVEROUSPipelineRunner(),
+        pipeline_runner=FEVEROUSPipelineRunner(llm=llm),
         tier_one_checks=[
             ProvenanceCompletenessCheck(),
             NoOrphanIntelligenceCheck(),
@@ -38,14 +41,17 @@ def feverous_pair() -> ManifestScorerPair:
 
 @register_pair("feverous_anthropic")
 def feverous_anthropic_pair() -> ManifestScorerPair:
+    from graphrag_core.llm.anthropic import AnthropicLLMClient
+
     manifest = FEVEROUSManifestLoader().load(
         _FIXTURE_PATH,
         model_pin={"extraction": "claude-sonnet-4-6", "seed": 42},
     )
+    llm = AnthropicLLMClient(model=manifest.model_pin["extraction"])
     return ManifestScorerPair(
         manifest=manifest,
         corpus_path=_FIXTURE_PATH,
-        pipeline_runner=FEVEROUSPipelineRunner(),
+        pipeline_runner=FEVEROUSPipelineRunner(llm=llm),
         tier_one_checks=[
             ProvenanceCompletenessCheck(),
             NoOrphanIntelligenceCheck(),
