@@ -12,20 +12,20 @@ Domain-specific logic (construction monitoring, due diligence, compliance) lives
 Test: Could a team building a legal compliance graph use this code without modification? If no → it doesn't belong here.
 
 ## Architecture
-8 building blocks, each with an abstract interface (Protocol). Some have default implementations shipped; some are Protocol-only (see interface spec for current shipping state).
+8 building blocks, each with an abstract interface (Protocol). Some have default implementations shipped; some are Protocol-only.
 
-| # | Block | Interface | Shipping status (2026-05-15) |
-|---|---|---|---|
-| 1 | Document Ingestion | `DocumentParser`, `Chunker`, `IngestionPipeline`, `EmbeddingModel` | PDF/DOCX/MD/Text parsers + token chunker shipped; `EmbeddingModel` is Protocol-only (no default impl yet) |
-| 2 | Entity Extraction | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` | `LLMExtractionEngine` + `DefaultPromptBuilder` shipped; `ExtractionPostProcessor` Protocol shipped (default impl is domain concern, lives in Lacuna) |
-| 3 | Knowledge Graph | `GraphStore`, `CommunityDetector` | `Neo4jGraphStore` + `MemoryGraphStore` shipped; `CommunityDetector` Protocol shipped, default impl in Lacuna (`LeidenCommunityDetector` via graspologic) |
-| 4 | Hybrid Search | `SearchEngine` | `Neo4jHybridSearch` + `MemorySearch` shipped |
-| 5 | Governed Curation | `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway` | `DeterministicDetectionLayer` ships; `LLMCurationLayer` is Protocol-only. `ApprovalGateway` is a reference shape (batch-and-apply) of the Layer-3 attestation contract — consumers may implement it or build an alternative surface. |
-| 6 | Entity Registry | `EntityRegistry` | `MemoryEntityRegistry` shipped (in-memory only; Neo4j-backed registry deferred) |
-| 7 | Core Tool Library | `ToolLibrary`, `Tool` | **Partial:** 4 of 8 tools shipped (`get_entity`, `search_entities`, `get_audit_trail`, `get_related`); 4 temporal tools (`get_entity_history`, `compare_periods`, `find_trend`, `find_unaddressed_topics`) currently in Lacuna, scheduled for push-down before next PyPI release |
-| 8 | Orchestration | `Orchestrator`, `Agent`, `ReportRenderer` | `SequentialOrchestrator` + `Agent` Protocol shipped; LangGraph orchestrator and DocxRenderer named in v0.1.0 spec, not yet implemented |
+| # | Block | Interface |
+|---|---|---|
+| 1 | Document Ingestion | `DocumentParser`, `Chunker`, `IngestionPipeline`, `EmbeddingModel` |
+| 2 | Entity Extraction | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` |
+| 3 | Knowledge Graph | `GraphStore`, `CommunityDetector` |
+| 4 | Hybrid Search | `SearchEngine` |
+| 5 | Governed Curation | `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway` |
+| 6 | Entity Registry | `EntityRegistry` |
+| 7 | Core Tool Library | `ToolLibrary`, `Tool` |
+| 8 | Orchestration | `Orchestrator`, `Agent`, `ReportRenderer` |
 
-Test count: **228** (`uv run pytest --collect-only -q` as of 2026-05-15). Earlier "182 tests" claim in v0.2.0 PyPI release notes is now stale.
+For per-block shipping state, default implementations, and Protocol-only entries, see each package's `INTERFACE.md`. Run `uv run pytest --collect-only -q` for the current test count.
 
 ## Tech Stack
 - Python 3.12+
@@ -113,27 +113,4 @@ python -m graphrag_core.graph.schema   # apply schema
 - CHANGELOG.md tracks all changes
 - First public commit establishes prior art before any organizational use
 
-### Next release blockers — v0.6.0 (per audit E1, scope-revised 2026-05-17)
-
-The audit's "BB7 push-down" turned out to be four entangled workstreams once we looked at the actual code. All four ship together in v0.6.0 because (2) and (3) depend on (1) and (4) is the natural sibling.
-
-**(1) BB3 — extend `AuditTrail` to document level.** `get_audit_trail(node_id)` today returns `node → chunk(s)`. Extend both `Neo4jGraphStore` and `MemoryGraphStore` to walk `chunk → document` and emit a `level="document"` `ProvenanceStep` carrying `DocumentMetadata` in `metadata`. The audit-trail Protocol's design intent always reached "documents → data source" but the impls stopped at chunks. Closes that gap.
-
-**(2) BB1 — IngestionPipeline writes `Document` nodes and `CHUNKED_FROM` edges.** Today no consumer creates `Document` graph nodes; `period` lives on no node anywhere. Pulling document-node creation into BB1 means provenance reaches the document level out of the box for every consumer (Lacuna and future). Add `period: str | None` field to `DocumentMetadata`; deprecate `quarter` (alias for one release, remove at v0.7.0).
-
-**(3) BB7 — push down 3 temporal tools (not 4).**
-- `get_node_history` (renamed from Lacuna's `get_entity_history` — graphrag-core operates on `GraphNode`, not the Lacuna `Entity` Tier-1 label)
-- `compare_periods` (already named correctly per the spec's `compare_quarters → compare_periods` rename)
-- `find_trend`
-
-All three consume `get_audit_trail` for period resolution. Zero hardcoded Lacuna labels/edges. Optional `rel_type` kwarg follows existing BB7 pattern in `make_get_related_tool` — domain consumers wanting "Claim-only history" pass `rel_type="ABOUT"` at the call site.
-
-`find_unaddressed_topics` **stays in Lacuna** — descoped from the audit's E1 list because it references `Topic` (Tier 3, human-curated) and `HAS_RECOMMENDATION` (Lacuna edge); not domain-agnostic by the push-down test.
-
-**(4) Neo4j becomes an optional extra.** Move `neo4j` driver to `[project.optional-dependencies] neo4j = [...]`. Lazy-import inside `Neo4jGraphStore`. Soft-breaking change: `pip install graphrag-core==0.6.0` no longer pulls Neo4j; users need `pip install graphrag-core[neo4j]`. CHANGELOG must call this out.
-
-**Optional same-release:** implement minimal `MemoryEmbeddingModel` for testing if no default lands; flag `ApprovalGateway` / `ReportRenderer` Protocol-only status in CHANGELOG.
-
-**Estimated scope:** ~4–5 engineer-days (not the audit's "~1 day" estimate).
-
-**Load-bearing decision:** see `tessera/docs/adr/0001-audit-trail-reaches-document-level.md` for the rationale on extending the audit trail rather than parameterizing magic label strings in the BB7 tools.
+For per-release planning and historical release blockers, see the CHANGELOG and the GitHub milestone/issue tracker.
