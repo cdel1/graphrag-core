@@ -24,7 +24,9 @@ graphrag-core = "graphrag_core.eval.cli:app"
 
 [project.entry-points."graphrag_core.eval_pairs"]
 docred = "graphrag_core.eval.benchmarks.docred"
+docred_anthropic = "graphrag_core.eval.benchmarks.docred"
 feverous = "graphrag_core.eval.benchmarks.feverous"
+feverous_anthropic = "graphrag_core.eval.benchmarks.feverous"
 
 [build-system]
 requires = ["hatchling"]

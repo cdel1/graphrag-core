@@ -38,7 +38,11 @@ class DocREDManifest(BaseModel):
 
 
 class DocREDManifestLoader:
-    def load(self, path: Path) -> DocREDManifest:
+    def load(
+        self,
+        path: Path,
+        model_pin: dict[str, Any] | None = None,
+    ) -> DocREDManifest:
         documents: list[DocREDDocument] = []
         gold_relations: list[DocREDGoldRelation] = []
         with path.open() as f:
@@ -63,7 +67,7 @@ class DocREDManifestLoader:
             version="docred@2026-06-10",
             slice_axes=["relation_type"],
             token_budget=200_000,
-            model_pin={"extraction": "gpt-4o-mini", "seed": 42},
+            model_pin=model_pin if model_pin is not None else {"extraction": "gpt-4o-mini", "seed": 42},
             documents=documents,
             gold_relations=gold_relations,
         )

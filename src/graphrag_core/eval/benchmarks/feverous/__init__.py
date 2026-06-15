@@ -34,3 +34,24 @@ def feverous_pair() -> ManifestScorerPair:
         ],
         scorer=FEVEROUSScorer(),
     )
+
+
+@register_pair("feverous_anthropic")
+def feverous_anthropic_pair() -> ManifestScorerPair:
+    manifest = FEVEROUSManifestLoader().load(
+        _FIXTURE_PATH,
+        model_pin={"extraction": "claude-sonnet-4-6", "seed": 42},
+    )
+    return ManifestScorerPair(
+        manifest=manifest,
+        corpus_path=_FIXTURE_PATH,
+        pipeline_runner=FEVEROUSPipelineRunner(),
+        tier_one_checks=[
+            ProvenanceCompletenessCheck(),
+            NoOrphanIntelligenceCheck(),
+            SchemaConformanceCheck(
+                allowed_labels={"Claim", "Entity", "Document", "Chunk", "Stakeholder"}
+            ),
+        ],
+        scorer=FEVEROUSScorer(),
+    )
