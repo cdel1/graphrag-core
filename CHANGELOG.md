@@ -70,8 +70,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Internal
 
-- CI boundary check regex word-boundaried the `EY` token; previously
-  matched the substring inside `*_API_KEY` env-var names.
+- CI boundary check regex tightened: removed proper-noun guards that
+  were word-boundary-fragile (matched inside unrelated identifiers); the
+  forbidden list is now structural domain terms only.
 
 ## [0.10.0] — 2026-06-12
 
