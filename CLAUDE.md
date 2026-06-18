@@ -20,7 +20,7 @@ Test: Could a team building a legal compliance graph use this code without modif
 | 2 | Entity Extraction | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` |
 | 3 | Knowledge Graph | `GraphStore`, `CommunityDetector` |
 | 4 | Hybrid Search | `SearchEngine` |
-| 5 | Governed Curation | `DetectionLayer`, `LLMCurationLayer`, `ApprovalGateway` |
+| 5 | Governed Curation | (none — Layer-3 attestation contract is text doctrine in `curation/INTERFACE.md`; no Python surface) |
 | 6 | Entity Registry | `EntityRegistry` |
 | 7 | Core Tool Library | `ToolLibrary`, `Tool` |
 | 8 | Orchestration | `Orchestrator`, `Agent`, `ReportRenderer` |
