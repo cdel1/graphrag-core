@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-06-18
+
+### BREAKING
+
+Per ADR-0038, the BB5 L1 surface shrinks to the Layer-3 attestation *contract*
+only. The Python that the 2026-06-15 BB5 doctrine ADR retained is removed.
+
+Removed public symbols (importable from `graphrag_core` or `graphrag_core.curation`):
+
+- Protocols (`graphrag_core.interfaces`):
+  - `DetectionLayer`
+  - `LLMCurationLayer`
+  - `ApprovalGateway`
+- Models (`graphrag_core.models`):
+  - `CurationIssue`
+  - `CurationReport`
+  - `ApprovalBatch`
+  - `ApplyResult`
+- Implementations (`graphrag_core.curation`):
+  - `DeterministicDetectionLayer`
+  - `CurationPipeline`
+
+`curation/INTERFACE.md` is rewritten to contract-only. The package now exports
+nothing; consumers should not import from `graphrag_core.curation`. The
+Layer-3 attestation contract (text doctrine) is the authoritative artifact and
+binds every L2 Layer-3 surface.
+
+Migration: there were no documented external consumers of any of the removed
+symbols. If your application imports them, either drop the dependency or
+re-derive the deterministic detectors at your application layer — they are
+straightforward to reimplement (orphan = nodes with no relationships; duplicate =
+node-name fuzzy match within label; schema violation = property / edge-type
+check against `OntologySchema`).
+
+### Changed
+
+- `curation/INTERFACE.md` rewritten to document only the Layer-3 attestation contract.
+- `CLAUDE.md` BB5 row updated to reflect the contract-only state.
+
 ## [0.11.0] — 2026-06-15
 
 ### Added
