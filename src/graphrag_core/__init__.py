@@ -1,13 +1,11 @@
 """graphrag-core: Domain-agnostic Graph RAG framework."""
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 from graphrag_core.interfaces import (
     Agent,
-    ApprovalGateway,
     Chunker,
     CommunityDetector,
-    DetectionLayer,
     DocumentParser,
     EmbeddingModel,
     EntityRegistry,
@@ -17,7 +15,6 @@ from graphrag_core.interfaces import (
     GraphStore,
     IngestionPipeline,
     LLMClient,
-    LLMCurationLayer,
     Orchestrator,
     ReportRenderer,
     SearchEngine,
@@ -33,7 +30,6 @@ from graphrag_core.extraction import DefaultPromptBuilder, LLMExtractionEngine
 from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.search import InMemorySearchEngine
 from graphrag_core.registry import InMemoryEntityRegistry
-from graphrag_core.curation import DeterministicDetectionLayer, CurationPipeline
 from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
 from graphrag_core.agents import AgentContext, SequentialOrchestrator
 from graphrag_core.llm import BaseLLMClient
@@ -41,8 +37,6 @@ from graphrag_core.models import (
     AgentResult,
     ChunkExtractionResult,
     Community,
-    CurationIssue,
-    CurationReport,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
@@ -64,10 +58,8 @@ from graphrag_core.models import (
 __all__ = [
     # Protocols
     "Agent",
-    "ApprovalGateway",
     "Chunker",
     "CommunityDetector",
-    "DetectionLayer",
     "DocumentParser",
     "EmbeddingModel",
     "EntityRegistry",
@@ -77,7 +69,6 @@ __all__ = [
     "GraphStore",
     "IngestionPipeline",
     "LLMClient",
-    "LLMCurationLayer",
     "Orchestrator",
     "ReportRenderer",
     "SearchEngine",
@@ -96,9 +87,6 @@ __all__ = [
     "InMemoryGraphStore",
     # BB4 implementations
     "InMemorySearchEngine",
-    # BB5 implementations
-    "CurationPipeline",
-    "DeterministicDetectionLayer",
     # BB6 implementations
     "InMemoryEntityRegistry",
     # BB7 implementations
@@ -112,8 +100,6 @@ __all__ = [
     "AgentResult",
     "ChunkExtractionResult",
     "Community",
-    "CurationIssue",
-    "CurationReport",
     "DocumentChunk",
     "ExtractionResult",
     "GraphNode",

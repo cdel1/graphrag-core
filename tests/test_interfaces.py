@@ -4,9 +4,7 @@ from pydantic import BaseModel
 
 from graphrag_core.interfaces import (
     Agent,
-    ApprovalGateway,
     Chunker,
-    DetectionLayer,
     DocumentParser,
     EmbeddingModel,
     EntityRegistry,
@@ -14,18 +12,14 @@ from graphrag_core.interfaces import (
     ExtractionPostProcessor,
     GraphStore,
     LLMClient,
-    LLMCurationLayer,
     Orchestrator,
     ReportRenderer,
     SearchEngine,
 )
 from graphrag_core.models import (
     AgentResult,
-    ApplyResult,
-    ApprovalBatch,
     AuditTrail,
     ChunkConfig,
-    CurationIssue,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
@@ -205,44 +199,6 @@ class TestSearchEngineProtocol:
 
         search: SearchEngine = MySearch()
         assert isinstance(search, SearchEngine)
-
-
-class TestDetectionLayerProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyDetection:
-            async def detect(
-                self, graph_store: GraphStore, schema: OntologySchema
-            ) -> list[CurationIssue]:
-                raise NotImplementedError
-
-        layer: DetectionLayer = MyDetection()
-        assert isinstance(layer, DetectionLayer)
-
-
-class TestLLMCurationLayerProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyCuration:
-            async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]:
-                raise NotImplementedError
-
-        layer: LLMCurationLayer = MyCuration()
-        assert isinstance(layer, LLMCurationLayer)
-
-
-class TestApprovalGatewayProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyGateway:
-            async def submit_for_approval(self, issues: list[CurationIssue]) -> str:
-                raise NotImplementedError
-
-            async def get_approval_status(self, batch_id: str) -> ApprovalBatch:
-                raise NotImplementedError
-
-            async def apply_approved(self, batch_id: str) -> ApplyResult:
-                raise NotImplementedError
-
-        gateway: ApprovalGateway = MyGateway()
-        assert isinstance(gateway, ApprovalGateway)
 
 
 class TestEntityRegistryProtocol:

@@ -8,12 +8,9 @@ from pydantic import BaseModel
 
 from graphrag_core.models import (
     AgentResult,
-    ApplyResult,
-    ApprovalBatch,
     AuditTrail,
     ChunkConfig,
     Community,
-    CurationIssue,
     DocumentChunk,
     ExtractionResult,
     GraphNode,
@@ -212,37 +209,6 @@ class SearchEngine(Protocol):
     async def hybrid_search(
         self, query: str, embedding: list[float], top_k: int = 10
     ) -> list[SearchResult]: ...
-
-
-# ---------------------------------------------------------------------------
-# BB5: Governed Curation
-# ---------------------------------------------------------------------------
-
-@runtime_checkable
-class DetectionLayer(Protocol):
-    """Deterministic quality checks on the knowledge graph."""
-
-    async def detect(
-        self, graph_store: GraphStore, schema: OntologySchema
-    ) -> list[CurationIssue]: ...
-
-
-@runtime_checkable
-class LLMCurationLayer(Protocol):
-    """LLM-based curation suggestions (entity resolution, relevance)."""
-
-    async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]: ...
-
-
-@runtime_checkable
-class ApprovalGateway(Protocol):
-    """Human approval for high-impact curation operations."""
-
-    async def submit_for_approval(self, issues: list[CurationIssue]) -> str: ...
-
-    async def get_approval_status(self, batch_id: str) -> ApprovalBatch: ...
-
-    async def apply_approved(self, batch_id: str) -> ApplyResult: ...
 
 
 # ---------------------------------------------------------------------------

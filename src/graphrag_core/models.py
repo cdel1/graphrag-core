@@ -183,39 +183,6 @@ class SearchResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# BB5: Governed Curation
-# ---------------------------------------------------------------------------
-
-class CurationIssue(BaseModel):
-    id: str
-    issue_type: str          # "duplicate", "orphan", "schema_violation", "skipped_detection"
-    severity: str            # "info", "warning", "error"
-    affected_nodes: list[str]
-    suggested_action: str
-    auto_fixable: bool
-    source_layer: str        # "deterministic", "llm"
-
-
-class CurationReport(BaseModel):
-    issues: list[CurationIssue]
-    nodes_scanned: int
-    relationships_scanned: int
-
-
-class ApprovalBatch(BaseModel):
-    batch_id: str
-    status: str              # "pending", "approved", "rejected", "partial"
-    issues: list[CurationIssue]
-
-
-class ApplyResult(BaseModel):
-    batch_id: str
-    applied: int
-    failed: int
-    errors: list[str]
-
-
-# ---------------------------------------------------------------------------
 # BB6: Known Entity Registry
 # ---------------------------------------------------------------------------
 
