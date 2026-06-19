@@ -12,18 +12,21 @@ Domain-specific logic (construction monitoring, due diligence, compliance) lives
 Test: Could a team building a legal compliance graph use this code without modification? If no → it doesn't belong here.
 
 ## Architecture
-8 building blocks, each with an abstract interface (Protocol). Some have default implementations shipped; some are Protocol-only.
 
-| # | Block | Interface |
-|---|---|---|
-| 1 | Document Ingestion | `DocumentParser`, `Chunker`, `IngestionPipeline`, `EmbeddingModel` |
-| 2 | Entity Extraction | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` |
-| 3 | Knowledge Graph | `GraphStore`, `CommunityDetector` |
-| 4 | Hybrid Search | `SearchEngine` |
-| 5 | Governed Curation | (none — Layer-3 attestation contract is text doctrine in `curation/INTERFACE.md`; no Python surface) |
-| 6 | Entity Registry | `EntityRegistry` |
-| 7 | Core Tool Library | `ToolLibrary`, `Tool` |
-| 8 | Orchestration | `Orchestrator`, `Agent`, `ReportRenderer` |
+8 active Building Blocks, organised on two axes — **pipeline-stage seats** (the data-flow stages every consumer walks) and **cross-cutting infrastructure seats** (Protocol families consumed across multiple stages or by external systems). Each BB exposes a Protocol or contract family Lacuna imports against; **a BB seat earns its existence by real consumer pressure** — speculative or doctrine-only seats get retired (per [ADR-0039](https://github.com/cdel1/tessera/blob/main/docs/adr/0039-bb-taxonomy-realignment-pipeline-vs-infrastructure.md)).
+
+| # | Block | Axis | Interface |
+|---|---|---|---|
+| 1 | Document Ingestion | pipeline | `DocumentParser`, `Chunker`, `IngestionPipeline` |
+| 2 | Entity Extraction | pipeline | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor`, `OntologySchema` |
+| 3 | Knowledge Graph + Layer-3 attestation contract | pipeline + doctrine | `GraphStore`, `CommunityDetector`; Layer-3 attestation contract (text doctrine in `graph/INTERFACE.md`) |
+| 4 | Hybrid Search | pipeline | `SearchEngine` |
+| ~~5~~ | ~~Governed Curation~~ | retired | Layer-3 doctrine merged into BB3; no Python surface |
+| 6 | Entity Registry | pipeline | `EntityRegistry` |
+| 7 | Core Tool Library (agent contract) | cross-cutting | `Tool`, `ToolLibrary` |
+| ~~8~~ | ~~Orchestration~~ | retired | Deleted in v0.13.0; agent-callability flows through BB7 + external MCP |
+| 9 | LLM Client | cross-cutting | `LLMClient` |
+| 10 | Retrieval Models | cross-cutting | `EmbeddingModel` (+ `Reranker` planned) |
 
 For per-block shipping state, default implementations, and Protocol-only entries, see each package's `INTERFACE.md`. Run `uv run pytest --collect-only -q` for the current test count.
 
@@ -48,15 +51,16 @@ For per-block shipping state, default implementations, and Protocol-only entries
 src/graphrag_core/
 ├── interfaces.py       # ALL Protocol definitions
 ├── models.py           # ALL Pydantic models
-├── ingestion/          # BB1: Parse, chunk, embed, store      | + INTERFACE.md
+├── ingestion/          # BB1: Parse, chunk                    | + INTERFACE.md
 ├── extraction/         # BB2: Schema-guided entity extraction | + INTERFACE.md
-├── graph/              # BB3: GraphStore + Neo4j default       | + INTERFACE.md
-├── search/              # BB4: Hybrid search                   | + INTERFACE.md
-├── curation/           # BB5: 3-layer governance              | + INTERFACE.md
+├── graph/              # BB3: GraphStore + Neo4j (+ L3        | + INTERFACE.md
+│                       #      attestation contract doctrine)
+├── search/             # BB4: Hybrid search                   | + INTERFACE.md
 ├── registry/           # BB6: Known entity dedup              | + INTERFACE.md
-├── tools/              # BB7: Core tool library (semantic)    | + INTERFACE.md
-├── llm/                # BB1 supporting: LLMClient            | + INTERFACE.md
-└── agents/             # BB8: Orchestration + ReportRenderer  | + INTERFACE.md
+├── tools/              # BB7: Core tool library (agent surf.) | + INTERFACE.md
+├── llm/                # BB9: LLMClient (multi-provider)      | + INTERFACE.md
+└── retrieval/          # BB10: EmbeddingModel + future        | + INTERFACE.md
+                        #       Reranker
 ```
 
 ## Per-Package Interface Documentation
@@ -77,20 +81,19 @@ When implementing a new Protocol backend (e.g., a new `GraphStore`, a new `LLMCl
 ## Extension Pattern
 Domain layers extend graphrag-core by:
 1. Defining an `OntologySchema` (node types, relationships)
-2. Registering domain tools via `ToolLibrary.register()`
-3. Implementing domain-specific `Agent` subclasses
-4. Optionally providing a custom `ReportRenderer`
+2. Registering domain tools via `ToolLibrary.register()` — the agent-callable surface (BB7)
+3. (Optional) Exposing the `ToolLibrary` via an external MCP server — graphrag-core itself does NOT ship an MCP server; the framework is tool-agnostic per the agentic-substrate doctrine (`2026-05-15-agentic-substrate-design.md` §4.1).
+4. (Optional) Providing a domain-specific renderer in the consuming application — `ReportRenderer` Protocol removed in v0.13.0 per ADR-0039; renderers are L2 concerns.
 
 ```python
-# Example: construction monitoring domain
-from graphrag_core import OntologySchema, ToolLibrary, Agent
+# Example: domain-tool registration
+from graphrag_core import OntologySchema, ToolLibrary, Tool
 
 schema = OntologySchema(node_types=[...], relationship_types=[...])
 tool_library.register(my_domain_tool)
-
-class PerspectiveAgent(Agent):
-    async def execute(self, context): ...
 ```
+
+Per the agentic-substrate doctrine: agents are external (Claude Code, MCP clients, custom harnesses); they consume your `ToolLibrary` over MCP. graphrag-core's job is the tool contract.
 
 ## Commands
 ```bash
