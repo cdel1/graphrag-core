@@ -67,7 +67,7 @@ __all__ = [
     "PdfParser",
     "TextParser",
     "TokenChunker",
-    # LLM base
+    # BB9 LLM client
     "BaseLLMClient",
     # BB2 implementations
     "DefaultPromptBuilder",
