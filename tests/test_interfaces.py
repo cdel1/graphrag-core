@@ -3,7 +3,6 @@
 from pydantic import BaseModel
 
 from graphrag_core.interfaces import (
-    Agent,
     Chunker,
     DocumentParser,
     EmbeddingModel,
@@ -12,12 +11,9 @@ from graphrag_core.interfaces import (
     ExtractionPostProcessor,
     GraphStore,
     LLMClient,
-    Orchestrator,
-    ReportRenderer,
     SearchEngine,
 )
 from graphrag_core.models import (
-    AgentResult,
     AuditTrail,
     ChunkConfig,
     DocumentChunk,
@@ -29,11 +25,8 @@ from graphrag_core.models import (
     OntologySchema,
     ParsedDocument,
     RegistryMatch,
-    RenderConfig,
-    ReportData,
     SchemaViolation,
     SearchResult,
-    WorkflowResult,
 )
 
 
@@ -217,42 +210,6 @@ class TestEntityRegistryProtocol:
 
         registry: EntityRegistry = MyRegistry()
         assert isinstance(registry, EntityRegistry)
-
-
-class TestAgentProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyAgent:
-            name = "test-agent"
-
-            async def execute(self, context: object) -> AgentResult:
-                raise NotImplementedError
-
-        agent: Agent = MyAgent()
-        assert isinstance(agent, Agent)
-
-
-class TestOrchestratorProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyOrchestrator:
-            async def run_workflow(
-                self, workflow_id: str, agents: list[Agent], context: object
-            ) -> WorkflowResult:
-                raise NotImplementedError
-
-        orch: Orchestrator = MyOrchestrator()
-        assert isinstance(orch, Orchestrator)
-
-
-class TestReportRendererProtocol:
-    def test_concrete_class_satisfies_protocol(self):
-        class MyRenderer:
-            async def render(
-                self, report_data: ReportData, template: str, config: RenderConfig
-            ) -> bytes:
-                raise NotImplementedError
-
-        renderer: ReportRenderer = MyRenderer()
-        assert isinstance(renderer, ReportRenderer)
 
 
 class TestExtractionPostProcessorProtocol:

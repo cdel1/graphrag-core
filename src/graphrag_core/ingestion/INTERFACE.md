@@ -1,6 +1,7 @@
 # `ingestion/` — INTERFACE (BB1)
 
-**Protocols:** `DocumentParser`, `Chunker`, `EmbeddingModel`, `IngestionPipeline`
+**Protocols:** `DocumentParser`, `Chunker`, `IngestionPipeline`
+**Note:** BB1 *consumes* `EmbeddingModel` via `IngestionPipeline.embedding_model` — the Protocol itself lives in BB10 retrieval models (per ADR-0039). Import as `from graphrag_core.retrieval import EmbeddingModel`.
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 38–68
 **Default implementations:** [`PdfParser`, `DocxParser`, `MarkdownParser`, `TextParser`](parsers.py); [`TokenChunker`](chunker.py); `IngestionPipeline` orchestrator at [`pipeline.py`](pipeline.py)
 **Vocabulary:** `Document`, `DocumentChunk`, `DataSource`, `ImportRun` — see `tessera/CONTEXT.md`
@@ -66,38 +67,6 @@ def chunk(self, doc: ParsedDocument, config: ChunkConfig) -> list[DocumentChunk]
 ### Default impl note
 
 `TokenChunker` uses `tiktoken` tokens. **Known issue:** strips newlines that downstream `extract_front_matter` (Lacuna) relies on for regex matching. Fix is to switch front-matter extraction to operate on parsed chunks rather than raw bytes — see `feature_requirements.md` "Front matter extraction for binary formats."
-
----
-
-## `EmbeddingModel`
-
-Produces vector embeddings for chunks. **Protocol-only — no default implementation in graphrag-core yet.**
-
-### Interface
-
-```python
-async def embed(self, texts: list[str]) -> list[list[float]]: ...
-```
-
-### Contracts
-
-- **Length preservation.** `len(embed(texts)) == len(texts)`. Order preserved.
-- **Dimension consistency.** All vectors from one instance have identical dimensionality. Implementations should expose `.dimension` for downstream index configuration.
-- **Batchable.** Single batch up to provider limit; caller handles pagination.
-
-### Error modes
-
-- Empty `texts` → returns `[]`, does not raise.
-- Provider failure → propagates exception.
-
-### Performance invariants
-
-- Latency dominated by provider call; orchestrate concurrency at caller level.
-- No graph I/O.
-
-### Roadmap
-
-`NomicEmbedding` named in the v0.1.0 spec but not yet implemented. A `MemoryEmbeddingModel` for tests is a candidate companion landing in the same release.
 
 ---
 

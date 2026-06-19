@@ -1,19 +1,21 @@
 # graphrag-core
 
-A domain-agnostic framework for building governed, auditable Knowledge Graphs from documents using LLM-powered extraction, provenance-native storage, and multi-agent orchestration.
+A domain-agnostic framework for building governed, auditable Knowledge Graphs from documents using LLM-powered extraction, provenance-native storage, and agent-callable tools.
 
 ## Architecture
 
 ```
 YOUR DOMAIN LAYER (Layer 2)
-  Ontology, domain tools, domain agents, templates
+  Ontology, domain tools, agents-via-MCP
                     |
                     | imports
                     v
 graphrag-core (Layer 1)
 
-  Ingestion   Extraction   Graph Store   Search
-  Curation    Registry     Tool Library  Orchestration
+  Pipeline:        Ingest -> Extract -> Graph Store (+ L3 attestation)
+                                            -> Search     (+ Entity Registry)
+
+  Cross-cutting:   LLM Client  ·  Retrieval Models  ·  Tool Library (agent surface)
 ```
 
 ## Install
@@ -90,21 +92,18 @@ asyncio.run(main())
 
 ## Building Blocks
 
-| # | Block | Interface | Implementation | Status |
-|---|---|---|---|---|
-| 1 | Document Ingestion | `DocumentParser`, `Chunker` | PDF, DOCX, Text, Markdown parsers; TokenChunker | Done |
-| 2 | Entity Extraction | `ExtractionEngine`, `LLMClient` | LLMExtractionEngine, AnthropicLLMClient | Done |
-| 3 | Knowledge Graph | `GraphStore` | InMemoryGraphStore, Neo4jGraphStore | Done |
-| 4 | Hybrid Search | `SearchEngine` | InMemorySearchEngine, Neo4jHybridSearch (RRF) | Done |
-| 5 | Governed Curation | `DetectionLayer` | DeterministicDetectionLayer, CurationPipeline | Done (detection layer) |
-| 6 | Entity Registry | `EntityRegistry` | InMemoryEntityRegistry (fuzzy matching) | Done |
-| 7 | Tool Library | `ToolLibrary` | 4 core tools (get_entity, search, audit_trail, related) | Done |
-| 8 | Orchestration | `Agent`, `Orchestrator` | SequentialOrchestrator, AgentContext | Done |
-
-Protocols marked with `(Protocol only)` have no default implementation yet:
-- `LLMCurationLayer`, `ApprovalGateway` (BB5 layers 2-3)
-- `ReportRenderer` (BB8)
-- `EmbeddingModel` (cross-cutting)
+| #  | Block                                       | Type                  | Interface                                              | Default impls                                    | Status   |
+|----|---------------------------------------------|-----------------------|--------------------------------------------------------|--------------------------------------------------|----------|
+| 1  | Document Ingestion                          | pipeline              | `DocumentParser`, `Chunker`, `IngestionPipeline`       | PDF/DOCX/Text/Markdown parsers; TokenChunker     | Done     |
+| 2  | Entity Extraction                           | pipeline              | `ExtractionEngine`, `ExtractionPromptBuilder`, `ExtractionPostProcessor` | `LLMExtractionEngine`, `DefaultPromptBuilder` | Done     |
+| 3  | Knowledge Graph + Layer-3 attestation       | pipeline + doctrine   | `GraphStore`, `CommunityDetector`                      | `InMemoryGraphStore`, `Neo4jGraphStore`          | Done     |
+| 4  | Hybrid Search                               | pipeline              | `SearchEngine`                                         | `InMemorySearchEngine`, `Neo4jHybridSearch` (RRF) | Done     |
+| ~~5~~ | ~~Governed Curation~~                    | retired               | merged into BB3 per ADR-0039 (doctrine in `graph/INTERFACE.md`) |                                          | Retired  |
+| 6  | Entity Registry                             | pipeline              | `EntityRegistry`                                       | `InMemoryEntityRegistry` (fuzzy + embedding match) | Done   |
+| 7  | Tool Library (agent contract)               | cross-cutting         | `Tool`, `ToolLibrary`                                  | 4 core + 3 temporal tools                        | Done     |
+| ~~8~~ | ~~Orchestration~~                        | retired               | deleted per ADR-0039; agent-callability = BB7 + MCP    |                                                  | Retired  |
+| 9  | LLM Client                                  | cross-cutting         | `LLMClient`                                            | `AnthropicLLMClient`, `OpenAILLMClient`          | Done     |
+| 10 | Retrieval Models                            | cross-cutting         | `EmbeddingModel` (+ `Reranker` planned)                | (`BB10-01` in flight; see capability map)        | Designed |
 
 ## Extension Pattern
 
@@ -114,18 +113,12 @@ from graphrag_core import OntologySchema, ToolLibrary, Tool
 # 1. Define your domain ontology
 schema = OntologySchema(node_types=[...], relationship_types=[...])
 
-# 2. Register domain-specific tools
+# 2. Register domain-specific tools (the agent-callable surface — BB7)
 library = ToolLibrary()
 library.register(Tool(name="my_tool", description="...", parameters={}, handler=my_handler))
-
-# 3. Implement domain agents
-class MyAgent:
-    name = "analyst"
-    async def execute(self, context):
-        result = await context.tool_library.execute("my_tool")
-        context.workflow_state["analysis"] = result.data
-        return AgentResult(agent_name=self.name, success=True)
 ```
+
+External agents (Claude Code, MCP clients, custom harnesses) consume your `ToolLibrary` over MCP — graphrag-core ships the tool contract; the agent harness is out-of-scope per the agentic-substrate doctrine.
 
 ## Development
 

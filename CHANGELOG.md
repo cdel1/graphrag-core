@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-06-19
+
+### BREAKING
+
+BB taxonomy realignment per [ADR-0039](https://github.com/cdel1/tessera/blob/main/docs/adr/0039-bb-taxonomy-realignment-pipeline-vs-infrastructure.md). BB5 merges into BB3, BB8 deleted, BB9 LLM and BB10 Retrieval seats created.
+
+**Removed public symbols (all zero L2 consumers):**
+
+- `graphrag_core.Agent` (Protocol)
+- `graphrag_core.Orchestrator` (Protocol)
+- `graphrag_core.ReportRenderer` (Protocol)
+- `graphrag_core.AgentContext`
+- `graphrag_core.SequentialOrchestrator`
+- `graphrag_core.AgentResult` (model)
+- `graphrag_core.WorkflowResult` (model)
+- `graphrag_core.ReportData` (model)
+- `graphrag_core.RenderConfig` (model)
+- `graphrag_core.curation` namespace (already empty post-0.12.0)
+- `graphrag_core.agents` namespace
+
+**Moved public surfaces (import path changed):**
+
+- `EmbeddingModel` — primary import path remains `from graphrag_core import EmbeddingModel`. New BB10 path: `from graphrag_core.retrieval import EmbeddingModel`. The old "BB1 supporting" framing in `ingestion/INTERFACE.md` is retired; BB10 is the canonical home.
+
+**Doctrine relocation (no symbol change):**
+
+- Layer-3 attestation contract doctrine moved from `graphrag_core.curation.INTERFACE.md` to `graphrag_core.graph.INTERFACE.md`. Behaviour unchanged; consumers implementing Layer-3 surfaces continue to satisfy the same contract.
+
+**Per ADR-0006b Rule 1, public-symbol removal is a BREAKING change → minor bump at pre-1.0 (0.12.0 → 0.13.0).**
+
+### Added
+
+- `graphrag_core.retrieval` namespace (BB10 seat) — re-exports `EmbeddingModel`; documented future `Reranker` Protocol home.
+- `tests/test_retrieval/` — Protocol-conformance smoke tests.
+
+### Changed
+
+- `CLAUDE.md` § Architecture rewritten with two-axis (pipeline / cross-cutting) framing.
+- `README.md` refreshed (tagline, architecture diagram, BB table, Extension Pattern).
+- `llm/INTERFACE.md` header BB-attribution: "BB1 supporting" → "BB9".
+- `ingestion/INTERFACE.md` drops EmbeddingModel section; adds BB10 pointer.
+
+### Migration
+
+Consumers of `graphrag-core 0.12.0` should:
+
+1. Remove any `from graphrag_core import Agent, Orchestrator, SequentialOrchestrator, AgentContext, ReportRenderer, AgentResult, WorkflowResult, ReportData, RenderConfig` imports. None of these had production consumers; if you implemented `Agent` subclasses or `ReportRenderer`, replace with the MCP-tool extension pattern per the agentic-substrate doctrine (`2026-05-15-agentic-substrate-design.md` §4.1).
+2. Optionally update `from graphrag_core.interfaces import EmbeddingModel` to `from graphrag_core.retrieval import EmbeddingModel` to match the new BB10 location (top-level `from graphrag_core import EmbeddingModel` continues to work).
+3. Bump pinned dependency: `graphrag-core>=0.13.0`.
+
 ## [0.12.0] — 2026-06-18
 
 ### BREAKING

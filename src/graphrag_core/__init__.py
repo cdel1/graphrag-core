@@ -1,9 +1,8 @@
 """graphrag-core: Domain-agnostic Graph RAG framework."""
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 from graphrag_core.interfaces import (
-    Agent,
     Chunker,
     CommunityDetector,
     DocumentParser,
@@ -15,8 +14,6 @@ from graphrag_core.interfaces import (
     GraphStore,
     IngestionPipeline,
     LLMClient,
-    Orchestrator,
-    ReportRenderer,
     SearchEngine,
 )
 from graphrag_core.ingestion import (
@@ -31,10 +28,8 @@ from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.search import InMemorySearchEngine
 from graphrag_core.registry import InMemoryEntityRegistry
 from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
-from graphrag_core.agents import AgentContext, SequentialOrchestrator
 from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
-    AgentResult,
     ChunkExtractionResult,
     Community,
     DocumentChunk,
@@ -47,17 +42,13 @@ from graphrag_core.models import (
     PropertyDefinition,
     RegistryMatch,
     RelationshipTypeDefinition,
-    RenderConfig,
-    ReportData,
     SearchResult,
     ToolParameter,
     ToolResult,
-    WorkflowResult,
 )
 
 __all__ = [
     # Protocols
-    "Agent",
     "Chunker",
     "CommunityDetector",
     "DocumentParser",
@@ -69,8 +60,6 @@ __all__ = [
     "GraphStore",
     "IngestionPipeline",
     "LLMClient",
-    "Orchestrator",
-    "ReportRenderer",
     "SearchEngine",
     # BB1 implementations
     "DocxParser",
@@ -78,7 +67,7 @@ __all__ = [
     "PdfParser",
     "TextParser",
     "TokenChunker",
-    # LLM base
+    # BB9 LLM client
     "BaseLLMClient",
     # BB2 implementations
     "DefaultPromptBuilder",
@@ -93,11 +82,7 @@ __all__ = [
     "Tool",
     "ToolLibrary",
     "register_core_tools",
-    # BB8 implementations
-    "AgentContext",
-    "SequentialOrchestrator",
     # Models
-    "AgentResult",
     "ChunkExtractionResult",
     "Community",
     "DocumentChunk",
@@ -110,12 +95,9 @@ __all__ = [
     "PropertyDefinition",
     "RegistryMatch",
     "RelationshipTypeDefinition",
-    "RenderConfig",
-    "ReportData",
     "SearchResult",
     "ToolParameter",
     "ToolResult",
-    "WorkflowResult",
 ]
 
 # Optional: Neo4j and Anthropic (require extras)

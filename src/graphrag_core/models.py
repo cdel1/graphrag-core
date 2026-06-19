@@ -216,29 +216,3 @@ class ToolResult(BaseModel):
     data: Any = None
     error: str | None = None
 
-
-# ---------------------------------------------------------------------------
-# BB8: Multi-Agent Orchestration
-# ---------------------------------------------------------------------------
-
-class AgentResult(BaseModel):
-    agent_name: str
-    success: bool
-    data: dict[str, Any] = {}
-    error: str | None = None
-
-
-class WorkflowResult(BaseModel):
-    workflow_id: str
-    success: bool
-    agent_results: list[AgentResult]
-
-
-class ReportData(BaseModel):
-    title: str
-    sections: list[dict[str, Any]]
-
-
-class RenderConfig(BaseModel):
-    format: str = "markdown"
-    options: dict[str, Any] = {}

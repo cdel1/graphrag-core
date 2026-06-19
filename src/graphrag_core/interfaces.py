@@ -7,7 +7,6 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from graphrag_core.models import (
-    AgentResult,
     AuditTrail,
     ChunkConfig,
     Community,
@@ -20,11 +19,8 @@ from graphrag_core.models import (
     OntologySchema,
     ParsedDocument,
     RegistryMatch,
-    RenderConfig,
-    ReportData,
     SchemaViolation,
     SearchResult,
-    WorkflowResult,
 )
 
 
@@ -227,33 +223,3 @@ class EntityRegistry(Protocol):
 
     async def bulk_register(self, entities: list[KnownEntity]) -> int: ...
 
-
-# ---------------------------------------------------------------------------
-# BB8: Multi-Agent Orchestration
-# ---------------------------------------------------------------------------
-
-@runtime_checkable
-class Agent(Protocol):
-    """A single agent with a defined role."""
-
-    name: str
-
-    async def execute(self, context: object) -> AgentResult: ...
-
-
-@runtime_checkable
-class Orchestrator(Protocol):
-    """Coordinates multi-agent workflows."""
-
-    async def run_workflow(
-        self, workflow_id: str, agents: list[Agent], context: object
-    ) -> WorkflowResult: ...
-
-
-@runtime_checkable
-class ReportRenderer(Protocol):
-    """Renders structured report data into output format."""
-
-    async def render(
-        self, report_data: ReportData, template: str, config: RenderConfig
-    ) -> bytes: ...

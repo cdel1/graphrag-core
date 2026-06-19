@@ -1,4 +1,4 @@
-# `llm/` — INTERFACE (BB1 supporting)
+# `llm/` — INTERFACE (BB9)
 
 **Protocol:** `LLMClient`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 72–90

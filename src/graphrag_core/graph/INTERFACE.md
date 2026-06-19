@@ -67,6 +67,18 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 
 ---
 
+## Layer 3 — the attestation contract
+
+Layer 3 is a **contract**, not a Protocol shape. Every Layer-3 mutation must produce a promotion event recording: attestor kind (distinguishing human vs. agent), attestor id, rationale, supporting excerpts, and timestamp; plus an immutable audit record of the mutation itself.
+
+Consumers may implement any surface that produces a contract-satisfying promotion event (e.g., batch-and-apply review, continuous editing, async queue, agent-driven review); `graphrag-core` takes no opinion on which shape and ships no reference Protocol.
+
+**Doctrine origin:** ADR-0035 (BB5 substrate doctrine); ADR-0038 (Python-removal amendment); ADR-0039 (BB5 retired, doctrine relocated here from the former `curation/INTERFACE.md`).
+
+**Graph-quality concerns** (duplicate / orphan / schema-violation detection, telemetry, ingest-time deduplication, candidate review) are play-shaped and live at Layer 2 in consuming applications. The pre-0.12.0 graphrag-core surface that attempted to ship these at L1 had zero consumers in production usage and was removed per ADR-0038.
+
+---
+
 ## `CommunityDetector`
 
 Tier 2 computation. Produces `Community` nodes from the Tier-1 graph for promotion to `TopicCandidate` (and ultimately Tier 3 `Topic`).
