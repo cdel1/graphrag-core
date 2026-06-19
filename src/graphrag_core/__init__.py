@@ -3,7 +3,6 @@
 __version__ = "0.12.0"
 
 from graphrag_core.interfaces import (
-    Agent,
     Chunker,
     CommunityDetector,
     DocumentParser,
@@ -15,8 +14,6 @@ from graphrag_core.interfaces import (
     GraphStore,
     IngestionPipeline,
     LLMClient,
-    Orchestrator,
-    ReportRenderer,
     SearchEngine,
 )
 from graphrag_core.ingestion import (
@@ -33,7 +30,6 @@ from graphrag_core.registry import InMemoryEntityRegistry
 from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
 from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
-    AgentResult,
     ChunkExtractionResult,
     Community,
     DocumentChunk,
@@ -46,17 +42,13 @@ from graphrag_core.models import (
     PropertyDefinition,
     RegistryMatch,
     RelationshipTypeDefinition,
-    RenderConfig,
-    ReportData,
     SearchResult,
     ToolParameter,
     ToolResult,
-    WorkflowResult,
 )
 
 __all__ = [
     # Protocols
-    "Agent",
     "Chunker",
     "CommunityDetector",
     "DocumentParser",
@@ -68,8 +60,6 @@ __all__ = [
     "GraphStore",
     "IngestionPipeline",
     "LLMClient",
-    "Orchestrator",
-    "ReportRenderer",
     "SearchEngine",
     # BB1 implementations
     "DocxParser",
@@ -93,7 +83,6 @@ __all__ = [
     "ToolLibrary",
     "register_core_tools",
     # Models
-    "AgentResult",
     "ChunkExtractionResult",
     "Community",
     "DocumentChunk",
@@ -106,12 +95,9 @@ __all__ = [
     "PropertyDefinition",
     "RegistryMatch",
     "RelationshipTypeDefinition",
-    "RenderConfig",
-    "ReportData",
     "SearchResult",
     "ToolParameter",
     "ToolResult",
-    "WorkflowResult",
 ]
 
 # Optional: Neo4j and Anthropic (require extras)
