@@ -31,7 +31,6 @@ from graphrag_core.graph import InMemoryGraphStore
 from graphrag_core.search import InMemorySearchEngine
 from graphrag_core.registry import InMemoryEntityRegistry
 from graphrag_core.tools import Tool, ToolLibrary, register_core_tools
-from graphrag_core.agents import AgentContext, SequentialOrchestrator
 from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
     AgentResult,
@@ -93,9 +92,6 @@ __all__ = [
     "Tool",
     "ToolLibrary",
     "register_core_tools",
-    # BB8 implementations
-    "AgentContext",
-    "SequentialOrchestrator",
     # Models
     "AgentResult",
     "ChunkExtractionResult",
