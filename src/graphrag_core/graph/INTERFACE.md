@@ -11,6 +11,8 @@
 
 The provenance-native graph backend. Every node and every edge must be traceable to a source `ImportRun`.
 
+`GraphStore`'s `Document` + `DocumentChunk` nodes and the `CHUNKED_FROM` / `EXTRACTED_FROM` edges form the *lexical layer* of a Lacuna-style two-layer graph (lexical + tiered ontology): the substrate beneath Tier 1 that lets every extracted node trace back to the exact passages that produced it. Consumers building plain lexical-graph use cases (passage retrieval, embedding search, source attribution) use only this substrate; consumers building tiered-intelligence applications layer Tier-1 / Tier-2 / Tier-3 contents on top.
+
 ### Interface
 
 ```python
