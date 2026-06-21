@@ -35,6 +35,10 @@ async def embed(self, texts: list[str]) -> list[list[float]]: ...
 - Latency dominated by provider call; orchestrate concurrency at caller level.
 - No graph I/O.
 
+### Embedding contract
+
+Chunk embeddings are stored as the `embedding` property on `:Chunk` nodes. All chunks in one graph share a single `EmbeddingModel` / vector space (single-space invariant); mixing models within a corpus breaks cross-lingual comparability. A vector index is a reference-implementation detail (Neo4j HNSW / InMemory linear scan) — **not** a contract obligation. Embedding attachment is optional at L1; a corpus ingested without an `EmbeddingModel` is valid and will lack the `embedding` property on its chunks.
+
 ### Roadmap
 
 `BB10-01` (first concrete impl, status `○ Designed`) wires a multilingual embedder (BGE-M3 vs multilingual-e5 — choice deferred to the implementing spec) into the ingestion pipeline + adds vector indexing in BB3. See capability map row `BB10-01` for current state.

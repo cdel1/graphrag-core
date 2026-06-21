@@ -22,7 +22,7 @@ async def parse(self, source: bytes, content_type: str) -> ParsedDocument: ...
 
 - **Format dispatch happens *before* the parser.** A `DocumentParser` is registered per MIME type; the caller picks the right parser. Parsers don't sniff.
 - **Returns a `ParsedDocument`** with `sections: list[TextSection]` and `metadata: DocumentMetadata`. Each section has heading, text, and optional page number.
-- **Structure preservation matters.** Headings, table rows, list items should land as separate sections (or carry markup) so downstream chunking and front-matter extraction work correctly. A PDF parser that returns one long string loses page-attribution and breaks `EXTRACTED_FROM` provenance.
+- **Structure preservation matters.** Headings, table rows, list items should land as separate sections (or carry markup) so downstream chunking and front-matter extraction work correctly. A PDF parser that returns one long string loses page-attribution and breaks `FROM_CHUNK` provenance.
 - **`metadata.sha256` is required and must be reproducible** for the same bytes (used for delta detection and duplicate suppression).
 
 ### Error modes
@@ -91,6 +91,8 @@ async def ingest(
 - **Does *not* run extraction.** That's BB2. Pipeline composition is left to the caller (Lacuna's `LacunaIngestionPipeline` wires parse → chunk → extract → canonicalize → store).
 - **Stable chunk IDs across re-ingestion of the same source.** Delta detection relies on this.
 - **(v0.6.0) Writes the `Document` node and the `(:Chunk)-[:FROM_DOCUMENT]->(:Document)` edges** when given a `GraphStore`. The `Document` node carries `DocumentMetadata` properties verbatim (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). This makes `GraphStore.get_provenance` reach the document level — the contract that BB7 temporal tools (`get_node_history`, `compare_periods`, `find_trend`) depend on.
+- **Writes `(:Chunk)-[:NEXT_CHUNK]->(:Chunk)` reading-order adjacency** (single directed edge) between consecutive chunks of the same document.
+- **Attaches the `embedding` property to each `:Chunk`** when an `EmbeddingModel` is configured (optional at L1).
 
 > **Why BB1 owns this:** every consumer of graphrag-core that wants period-aware tooling needs document-level provenance. Pre-v0.6.0, document-node creation was the caller's responsibility (and Lacuna didn't do it, which silently broke `claim_period`). Pulling it into BB1 makes the provenance chain complete out of the box and removes a class of "tools return empty results" bugs.
 
