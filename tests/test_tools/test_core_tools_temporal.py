@@ -213,8 +213,8 @@ async def test_temporal_tool_handler_wraps_internal_error_as_tool_result():
             raise RuntimeError("boom")
 
         async def get_audit_trail(self, *a, **kw):
-            from graphrag_core.models import AuditTrail
-            return AuditTrail(node_id="x", provenance_chain=[])
+            from graphrag_core.models import ProvenanceTrail
+            return ProvenanceTrail(node_id="x", provenance_chain=[])
 
     tool = make_get_node_history_tool(FaultyStore())
     result = await tool.handler(node_id="anything")

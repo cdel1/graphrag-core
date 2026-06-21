@@ -13,7 +13,7 @@ NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 from graphrag_core.llm.base import BaseLLMClient
 from graphrag_core.models import (
     ChunkConfig,
-    DocumentChunk,
+    Chunk,
     DocumentMetadata,
     ImportRun,
     NodeTypeDefinition,

@@ -14,9 +14,9 @@ from graphrag_core.interfaces import (
     SearchEngine,
 )
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     ChunkConfig,
-    DocumentChunk,
+    Chunk,
     ExtractionResult,
     GraphNode,
     GraphRelationship,
@@ -45,7 +45,7 @@ class TestChunkerProtocol:
         class MyChunker:
             def chunk(
                 self, doc: ParsedDocument, config: ChunkConfig
-            ) -> list[DocumentChunk]:
+            ) -> list[Chunk]:
                 raise NotImplementedError
 
         chunker: Chunker = MyChunker()
@@ -67,7 +67,7 @@ class TestExtractionEngineProtocol:
         class MyEngine:
             async def extract(
                 self,
-                chunks: list[DocumentChunk],
+                chunks: list[Chunk],
                 schema: OntologySchema,
                 import_run: ImportRun,
             ) -> ExtractionResult:
@@ -96,7 +96,7 @@ class TestGraphStoreProtocol:
             async def get_node(self, node_id: str) -> GraphNode | None:
                 raise NotImplementedError
 
-            async def get_audit_trail(self, node_id: str) -> AuditTrail:
+            async def get_audit_trail(self, node_id: str) -> ProvenanceTrail:
                 raise NotImplementedError
 
             async def get_related(

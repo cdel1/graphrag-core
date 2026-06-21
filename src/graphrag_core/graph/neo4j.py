@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     GraphNode,
     GraphRelationship,
     OntologySchema,
@@ -116,7 +116,7 @@ class Neo4jGraphStore:
             props.pop("_updated_at", None)
             return GraphNode(id=node_id_val, label=label, properties=props)
 
-    async def get_audit_trail(self, node_id: str) -> AuditTrail:
+    async def get_audit_trail(self, node_id: str) -> ProvenanceTrail:
         query = (
             "MATCH (n {id: $id}) "
             "OPTIONAL MATCH (c:Chunk)-[:SOURCED]->(n) "
@@ -145,7 +145,7 @@ class Neo4jGraphStore:
                                                 metadata=doc["props"]))
                     seen.add(doc["id"])
 
-            return AuditTrail(node_id=node_id, provenance_chain=chain)
+            return ProvenanceTrail(node_id=node_id, provenance_chain=chain)
 
     async def get_related(
         self, node_id: str, rel_type: str | None = None, depth: int = 1

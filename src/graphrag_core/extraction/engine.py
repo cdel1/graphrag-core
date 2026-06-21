@@ -5,7 +5,7 @@ from __future__ import annotations
 from graphrag_core.interfaces import ExtractionPromptBuilder, LLMClient
 from graphrag_core.models import (
     ChunkExtractionResult,
-    DocumentChunk,
+    Chunk,
     ExtractedNode,
     ExtractedRelationship,
     ExtractionResult,
@@ -106,7 +106,7 @@ class LLMExtractionEngine:
 
     async def extract(
         self,
-        chunks: list[DocumentChunk],
+        chunks: list[Chunk],
         schema: OntologySchema,
         import_run: ImportRun,
     ) -> ExtractionResult:
@@ -135,7 +135,7 @@ class LLMExtractionEngine:
         )
 
     async def _extract_chunk(
-        self, chunk: DocumentChunk, system_prompt: str
+        self, chunk: Chunk, system_prompt: str
     ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
         result = await self._llm.complete_json(
             messages=[{"role": "user", "content": chunk.text}],

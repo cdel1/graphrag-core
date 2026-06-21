@@ -7,10 +7,10 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     ChunkConfig,
     Community,
-    DocumentChunk,
+    Chunk,
     ExtractionResult,
     GraphNode,
     GraphRelationship,
@@ -39,7 +39,7 @@ class DocumentParser(Protocol):
 class Chunker(Protocol):
     """Splits parsed documents into semantic chunks."""
 
-    def chunk(self, doc: ParsedDocument, config: ChunkConfig) -> list[DocumentChunk]: ...
+    def chunk(self, doc: ParsedDocument, config: ChunkConfig) -> list[Chunk]: ...
 
 
 @runtime_checkable
@@ -58,7 +58,7 @@ class IngestionPipeline(Protocol):
         source: bytes,
         content_type: str,
         config: ChunkConfig | None = None,
-    ) -> list[DocumentChunk]: ...
+    ) -> list[Chunk]: ...
 
 
 @runtime_checkable
@@ -93,7 +93,7 @@ class ExtractionEngine(Protocol):
 
     async def extract(
         self,
-        chunks: list[DocumentChunk],
+        chunks: list[Chunk],
         schema: OntologySchema,
         import_run: ImportRun,
     ) -> ExtractionResult: ...
@@ -138,7 +138,7 @@ class GraphStore(Protocol):
 
     async def get_node(self, node_id: str) -> GraphNode | None: ...
 
-    async def get_audit_trail(self, node_id: str) -> AuditTrail: ...
+    async def get_audit_trail(self, node_id: str) -> ProvenanceTrail: ...
 
     async def get_related(
         self, node_id: str, rel_type: str | None = None, depth: int = 1

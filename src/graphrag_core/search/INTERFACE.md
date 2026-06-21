@@ -3,7 +3,7 @@
 **Protocol:** `SearchEngine`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 172–189
 **Default implementations:** [`Neo4jHybridSearch`](neo4j.py), [`InMemorySearchEngine`](memory.py), [`fusion.py`](fusion.py) (RRF helper)
-**Vocabulary:** `DocumentChunk`, `SearchResult` — see `tessera/CONTEXT.md`
+**Vocabulary:** `Chunk`, `SearchResult` — see `tessera/CONTEXT.md`
 **Doctrine:** [`tessera/docs/adr/0032-bb4-hybrid-search-rrf-and-protocol-shape.md`](../../../../../tessera/docs/adr/0032-bb4-hybrid-search-rrf-and-protocol-shape.md) — RRF as canonical fusion, bi-modal hybrid, dual L1 impls.
 
 ---

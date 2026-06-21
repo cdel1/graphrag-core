@@ -10,7 +10,7 @@ import pytest
 from graphrag_core.models import (
     ChunkConfig,
     ChunkExtractionResult,
-    DocumentChunk,
+    Chunk,
     ExtractedNode,
     ExtractedRelationship,
     ImportRun,
@@ -93,9 +93,9 @@ def _import_run() -> ImportRun:
     )
 
 
-def _chunks() -> list[DocumentChunk]:
+def _chunks() -> list[Chunk]:
     return [
-        DocumentChunk(id="chunk-0", text="Alice is a software engineer at Acme Corp.", position=0),
+        Chunk(id="chunk-0", text="Alice is a software engineer at Acme Corp.", position=0),
     ]
 
 
@@ -230,8 +230,8 @@ class TestExtractionEngineMultiChunk:
         from graphrag_core.extraction.engine import LLMExtractionEngine
 
         chunks = [
-            DocumentChunk(id="chunk-0", text="Alice works at Acme.", position=0),
-            DocumentChunk(id="chunk-1", text="Bob works at Globex.", position=1),
+            Chunk(id="chunk-0", text="Alice works at Acme.", position=0),
+            Chunk(id="chunk-1", text="Bob works at Globex.", position=1),
         ]
 
         response_0 = json.dumps({

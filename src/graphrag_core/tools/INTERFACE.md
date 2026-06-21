@@ -81,12 +81,12 @@ Registered by `register_core_tools(library, graph_store, search_engine)`:
 |---|---|---|
 | `get_entity` | `entity_id: string` | Node dump or error |
 | `search_entities` | `query: string`, `node_types: list[string]` (optional), `top_k: int` (optional) | List of SearchResult dumps |
-| `get_audit_trail` | `node_id: string` | AuditTrail dump |
+| `get_audit_trail` | `node_id: string` | ProvenanceTrail dump |
 | `get_related` | `node_id: string`, `rel_type: string` (optional), `depth: int` (optional) | List of node dumps |
 
 ## Pending push-down from Lacuna (audit E1, scope-revised 2026-05-17)
 
-Three temporal tools push down to graphrag-core BB7 in v0.6.0. They consume the document-level audit trail (`get_audit_trail(node_id) → AuditTrail` with `level="document"` steps) for period resolution — no Lacuna-specific labels or edge names are hardcoded in graphrag-core. Implementation: new file `core_tools_temporal.py`, registered via `register_temporal_tools(library, graph_store)`.
+Three temporal tools push down to graphrag-core BB7 in v0.6.0. They consume the document-level audit trail (`get_audit_trail(node_id) → ProvenanceTrail` with `level="document"` steps) for period resolution — no Lacuna-specific labels or edge names are hardcoded in graphrag-core. Implementation: new file `core_tools_temporal.py`, registered via `register_temporal_tools(library, graph_store)`.
 
 | Name (graphrag-core v0.6.0) | Parameters | Returns | Lacuna origin |
 |---|---|---|---|

@@ -41,7 +41,7 @@ class ChunkConfig(BaseModel):
     overlap: int = 50
 
 
-class DocumentChunk(BaseModel):
+class Chunk(BaseModel):
     id: str
     text: str
     embedding: list[float] | None = None
@@ -149,7 +149,7 @@ class ProvenanceStep(BaseModel):
     metadata: dict[str, Any]
 
 
-class AuditTrail(BaseModel):
+class ProvenanceTrail(BaseModel):
     node_id: str
     provenance_chain: list[ProvenanceStep]
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphrag_core.interfaces import Chunker, DocumentParser, EmbeddingModel
-from graphrag_core.models import ChunkConfig, DocumentChunk, GraphNode, GraphRelationship
+from graphrag_core.models import ChunkConfig, Chunk, GraphNode, GraphRelationship
 
 if TYPE_CHECKING:
     from graphrag_core.interfaces import GraphStore
@@ -32,7 +32,7 @@ class IngestionPipeline:
         *,
         graph_store: "GraphStore | None" = None,
         import_run_id: str | None = None,
-    ) -> list[DocumentChunk]:
+    ) -> list[Chunk]:
         parsed = await self._parser.parse(source, content_type)
         chunks = self._chunker.chunk(parsed, config or ChunkConfig())
 

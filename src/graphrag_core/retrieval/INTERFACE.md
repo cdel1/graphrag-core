@@ -10,7 +10,7 @@
 
 ## `EmbeddingModel`
 
-Provider-agnostic interface for dense-vector encoding of text. Used by `IngestionPipeline` to attach embeddings to `DocumentChunk`s and by `SearchEngine` to embed queries for vector search.
+Provider-agnostic interface for dense-vector encoding of text. Used by `IngestionPipeline` to attach embeddings to `Chunk`s and by `SearchEngine` to embed queries for vector search.
 
 ### Interface
 
