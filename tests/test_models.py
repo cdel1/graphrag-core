@@ -223,7 +223,7 @@ class TestGraphModels:
         )
         assert step.level == "chunk"
 
-    def test_audit_trail(self):
+    def test_provenance_trail(self):
         trail = ProvenanceTrail(
             node_id="g1",
             provenance_chain=[

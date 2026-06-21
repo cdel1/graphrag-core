@@ -47,7 +47,7 @@ async def test_ingest_writes_document_node(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ingest_writes_chunked_from_edges(monkeypatch):
+async def test_ingest_writes_from_document_edges(monkeypatch):
     parser = TextParser()
     chunker = TokenChunker()
     metadata = DocumentMetadata(
@@ -168,7 +168,7 @@ async def test_ingest_raises_if_graph_store_without_import_run_id(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ingest_creates_chunk_nodes_before_chunked_from_edges(monkeypatch):
+async def test_ingest_creates_chunk_nodes_before_from_document_edges(monkeypatch):
     """Regression: BB1 must merge :Chunk nodes before FROM_DOCUMENT edges so
     Neo4j MERGE-with-MATCH-endpoints semantics work end-to-end (see v0.6.1 fix).
 
@@ -302,10 +302,10 @@ async def test_ingest_writes_next_chunk_adjacency(monkeypatch):
     # exactly one edge per consecutive pair
     assert len(next_chunk_rels) == len(chunks) - 1
 
-    # edges are ordered: (chunks[i]) -> (chunks[i+1])
-    for i, (prev, nxt) in enumerate(zip(chunks, chunks[1:])):
-        assert next_chunk_rels[i].source_id == prev.id
-        assert next_chunk_rels[i].target_id == nxt.id
+    # edges map consecutively (order-independent assertion)
+    adjacency = {r.source_id: r.target_id for r in next_chunk_rels}
+    for prev, nxt in zip(chunks, chunks[1:]):
+        assert adjacency[prev.id] == nxt.id
 
     # no PREV_CHUNK reverse edges
     prev_chunk_rels = [r for r in await store.list_relationships() if r.type == "PREV_CHUNK"]
