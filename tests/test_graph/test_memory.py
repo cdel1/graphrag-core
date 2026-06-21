@@ -327,3 +327,16 @@ class TestInMemoryGraphStoreStrictMerge:
         await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
         rel = GraphRelationship(source_id="a", target_id="b", type="REL", properties={})
         assert await store.merge_relationship(rel, "run-1") == "a-REL-b"
+
+
+class TestInMemoryProvenanceEdgeDirection:
+    @pytest.mark.asyncio
+    async def test_provenance_edge_is_node_to_chunk_from_chunk(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="claim-1", label="Claim", properties={}), "run-1")
+        await store.record_provenance("claim-1", "chunk-1", "run-1")
+        trail = await store.get_provenance("claim-1")
+        chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
+        assert [s.id for s in chunk_steps] == ["chunk-1"]

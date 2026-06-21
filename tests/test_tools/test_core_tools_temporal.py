@@ -28,7 +28,7 @@ async def _make_anchor_with_neighbors_in_periods(
 ) -> None:
     """Create an anchor node + N claims per period, all linked via rel_type.
 
-    Each claim chained: claim -SOURCED(prov)- chunk -CHUNKED_FROM- doc{period: P}.
+    Each claim chained: claim -FROM_CHUNK(prov)-> chunk -CHUNKED_FROM- doc{period: P}.
     """
     await store.merge_node(
         GraphNode(id=anchor_id, label="Entity", properties={}),

@@ -91,7 +91,7 @@ class Neo4jGraphStore:
             "MERGE (c:Chunk {id: $chunk_id}) "
             "WITH c "
             "MATCH (n {id: $node_id}) "
-            "MERGE (c)-[r:SOURCED]->(n) "
+            "MERGE (n)-[r:FROM_CHUNK]->(c) "
             "SET r._import_run_id = $run_id"
         )
         async with self._driver.session(database=self._database) as session:
@@ -119,7 +119,7 @@ class Neo4jGraphStore:
     async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         query = (
             "MATCH (n {id: $id}) "
-            "OPTIONAL MATCH (c:Chunk)-[:SOURCED]->(n) "
+            "OPTIONAL MATCH (n)-[:FROM_CHUNK]->(c:Chunk) "
             "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
             "RETURN n, labels(n) AS node_labels, "
             "       collect(DISTINCT c.id) AS chunk_ids, "
@@ -214,7 +214,7 @@ class Neo4jGraphStore:
             return nodes
 
     async def count_relationships(self) -> int:
-        query = "MATCH ()-[r]->() WHERE type(r) <> 'SOURCED' RETURN count(r) AS cnt"
+        query = "MATCH ()-[r]->() WHERE type(r) <> 'FROM_CHUNK' RETURN count(r) AS cnt"
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query)
             record = await result.single()
