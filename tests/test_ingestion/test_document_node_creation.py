@@ -270,3 +270,66 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
         )
         n_edges = (await result.single())["n"]
     assert n_edges == len(chunks)
+
+
+# ---------------------------------------------------------------------------
+# BB1-07: NEXT_CHUNK adjacency edges
+
+
+@pytest.mark.asyncio
+async def test_ingest_writes_next_chunk_adjacency(monkeypatch):
+    """BB1-07: consecutive chunks linked (prev)-[:NEXT_CHUNK]->(next), single-directed."""
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="adj", source="s", doc_type="d",
+        date=None, quarter=None, period="2026-Q2", sha256="adj-1",
+    )
+    # Long enough to produce multiple chunks
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 200))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    chunks = await pipeline.ingest(
+        b"body", "text/plain", config=ChunkConfig(max_tokens=10),
+        graph_store=store, import_run_id="run-1",
+    )
+
+    assert len(chunks) >= 2, "need multiple chunks to test adjacency"
+
+    next_chunk_rels = [r for r in await store.list_relationships() if r.type == "NEXT_CHUNK"]
+
+    # exactly one edge per consecutive pair
+    assert len(next_chunk_rels) == len(chunks) - 1
+
+    # edges are ordered: (chunks[i]) -> (chunks[i+1])
+    for i, (prev, nxt) in enumerate(zip(chunks, chunks[1:])):
+        assert next_chunk_rels[i].source_id == prev.id
+        assert next_chunk_rels[i].target_id == nxt.id
+
+    # no PREV_CHUNK reverse edges
+    prev_chunk_rels = [r for r in await store.list_relationships() if r.type == "PREV_CHUNK"]
+    assert len(prev_chunk_rels) == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_single_chunk_no_next_chunk_edges(monkeypatch):
+    """BB1-07: single-chunk doc writes zero NEXT_CHUNK edges."""
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="single", source="s", doc_type="d",
+        date=None, quarter=None, period="2026-Q2", sha256="single-1",
+    )
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="short"))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    chunks = await pipeline.ingest(
+        b"short", "text/plain", config=ChunkConfig(),
+        graph_store=store, import_run_id="run-1",
+    )
+
+    assert len(chunks) == 1
+    next_chunk_rels = [r for r in await store.list_relationships() if r.type == "NEXT_CHUNK"]
+    assert len(next_chunk_rels) == 0

@@ -81,6 +81,16 @@ class IngestionPipeline:
                     ),
                     import_run_id,
                 )
+            for prev, nxt in zip(chunks, chunks[1:]):
+                await graph_store.merge_relationship(
+                    GraphRelationship(
+                        source_id=prev.id,
+                        target_id=nxt.id,
+                        type="NEXT_CHUNK",
+                        properties={},
+                    ),
+                    import_run_id,
+                )
             await graph_store.flush()
 
         return chunks
