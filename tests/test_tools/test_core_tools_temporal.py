@@ -212,7 +212,7 @@ async def test_temporal_tool_handler_wraps_internal_error_as_tool_result():
         async def get_related(self, *a, **kw):
             raise RuntimeError("boom")
 
-        async def get_audit_trail(self, *a, **kw):
+        async def get_provenance(self, *a, **kw):
             from graphrag_core.models import ProvenanceTrail
             return ProvenanceTrail(node_id="x", provenance_chain=[])
 

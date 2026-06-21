@@ -24,7 +24,7 @@ async def test_memory_store_indexes_chunked_from_edges():
         import_run_id="run-1",
     )
 
-    # The internal index used by get_audit_trail must resolve chunk -> doc
+    # The internal index used by get_provenance must resolve chunk -> doc
     assert store._chunk_to_doc.get(chunk_id) == "doc:1"
 
 
@@ -108,7 +108,7 @@ async def test_memory_audit_trail_reaches_document():
         import_run_id="run-1",
     )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     levels = [step.level for step in trail.provenance_chain]
     assert "document" in levels
 
@@ -121,7 +121,7 @@ async def test_memory_audit_trail_reaches_document():
 @pytest.mark.asyncio
 async def test_memory_audit_trail_missing_node_returns_empty_chain():
     store = InMemoryGraphStore()
-    trail = await store.get_audit_trail("nonexistent")
+    trail = await store.get_provenance("nonexistent")
     assert trail.node_id == "nonexistent"
     assert trail.provenance_chain == []
 
@@ -134,7 +134,7 @@ async def test_memory_audit_trail_node_without_provenance_returns_node_step_only
         GraphNode(id="claim:lonely", label="Claim", properties={}),
         import_run_id="run-1",
     )
-    trail = await store.get_audit_trail("claim:lonely")
+    trail = await store.get_provenance("claim:lonely")
     levels = [s.level for s in trail.provenance_chain]
     assert levels == ["node"]
 
@@ -161,7 +161,7 @@ async def test_memory_audit_trail_deduplicates_document_step():
             import_run_id="run-1",
         )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     doc_steps = [s for s in trail.provenance_chain if s.level == "document"]
     assert len(doc_steps) == 1, (
         f"expected exactly 1 document step, got {len(doc_steps)}"
@@ -213,7 +213,7 @@ async def test_neo4j_audit_trail_reaches_document(neo4j_test_store):
         import_run_id="run-1",
     )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     doc_step = next((s for s in trail.provenance_chain if s.level == "document"), None)
     assert doc_step is not None
     assert doc_step.id == "doc:1"

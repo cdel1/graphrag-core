@@ -80,7 +80,7 @@ class TestNeo4jProvenance:
         await store.merge_node(GraphNode(id="n1", label="Company", properties={"name": "Acme"}), "run-1")
         await store.record_provenance(node_id="n1", chunk_id="chunk-0", import_run_id="run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         assert trail.node_id == "n1"
         assert len(trail.provenance_chain) >= 2
         levels = [s.level for s in trail.provenance_chain]
@@ -93,7 +93,7 @@ class TestNeo4jProvenance:
         await store.record_provenance(node_id="n1", chunk_id="chunk-0", import_run_id="run-1")
         await store.record_provenance(node_id="n1", chunk_id="chunk-1", import_run_id="run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
         assert len(chunk_steps) == 2
         chunk_ids = {s.id for s in chunk_steps}

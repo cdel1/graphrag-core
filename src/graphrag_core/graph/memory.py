@@ -59,7 +59,7 @@ class InMemoryGraphStore:
     async def get_node(self, node_id: str) -> GraphNode | None:
         return self._nodes.get(node_id)
 
-    async def get_audit_trail(self, node_id: str) -> ProvenanceTrail:
+    async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         chain: list[ProvenanceStep] = []
         node = self._nodes.get(node_id)
         if node:

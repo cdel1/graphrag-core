@@ -96,7 +96,7 @@ class TestGraphStoreProtocol:
             async def get_node(self, node_id: str) -> GraphNode | None:
                 raise NotImplementedError
 
-            async def get_audit_trail(self, node_id: str) -> ProvenanceTrail:
+            async def get_provenance(self, node_id: str) -> ProvenanceTrail:
                 raise NotImplementedError
 
             async def get_related(
