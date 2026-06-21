@@ -5,7 +5,7 @@ source-document period — no hardcoded Lacuna labels or edge names. The
 optional rel_type kwarg lets callers filter neighbors at the call site
 (e.g., Lacuna passes rel_type="ABOUT" for claim-only history). Without
 rel_type, all incident edges (including structural provenance edges like
-EXTRACTED_FROM, CHUNKED_FROM) are counted as neighbors — almost never the
+EXTRACTED_FROM, FROM_DOCUMENT) are counted as neighbors — almost never the
 desired semantic.
 """
 

@@ -134,8 +134,8 @@ class GraphStoreContractTests:
         store = await self._store()
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
-        # Document traversal is expected to follow CHUNKED_FROM edges (ADR-0001).
-        await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
+        # Document traversal is expected to follow FROM_DOCUMENT edges.
+        await store.merge_relationship(_rel("chunk-1", "doc-1", "FROM_DOCUMENT"), "run-1")
         await store.merge_node(_node("entity-1", name="E"), "run-1")
         await store.record_provenance("entity-1", "chunk-1", "run-1")
 
@@ -162,7 +162,7 @@ class GraphStoreContractTests:
         store = await self._store()
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
-        await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
+        await store.merge_relationship(_rel("chunk-1", "doc-1", "FROM_DOCUMENT"), "run-1")
         await store.merge_node(_node("entity-1", name="E"), "run-1")
         await store.record_provenance("entity-1", "chunk-1", "run-1")
         await store.flush()

@@ -120,7 +120,7 @@ class Neo4jGraphStore:
         query = (
             "MATCH (n {id: $id}) "
             "OPTIONAL MATCH (n)-[:FROM_CHUNK]->(c:Chunk) "
-            "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
+            "OPTIONAL MATCH (c)-[:FROM_DOCUMENT]->(d:Document) "
             "RETURN n, labels(n) AS node_labels, "
             "       collect(DISTINCT c.id) AS chunk_ids, "
             "       collect(DISTINCT CASE WHEN d IS NOT NULL THEN {id: d.id, props: properties(d)} END) AS docs"

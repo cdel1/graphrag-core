@@ -59,7 +59,7 @@ class IngestionPipeline:
                 import_run_id,
             )
             for chunk in chunks:
-                # :Chunk node must exist before CHUNKED_FROM edge — Neo4j MERGE
+                # :Chunk node must exist before FROM_DOCUMENT edge — Neo4j MERGE
                 # requires both endpoints to be matchable.
                 chunk_props: dict[str, object] = {"text": chunk.text}
                 if chunk.page is not None:
@@ -76,7 +76,7 @@ class IngestionPipeline:
                     GraphRelationship(
                         source_id=chunk.id,
                         target_id=doc_id,
-                        type="CHUNKED_FROM",
+                        type="FROM_DOCUMENT",
                         properties={},
                     ),
                     import_run_id,

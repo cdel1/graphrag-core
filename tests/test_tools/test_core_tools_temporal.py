@@ -28,7 +28,7 @@ async def _make_anchor_with_neighbors_in_periods(
 ) -> None:
     """Create an anchor node + N claims per period, all linked via rel_type.
 
-    Each claim chained: claim -FROM_CHUNK(prov)-> chunk -CHUNKED_FROM- doc{period: P}.
+    Each claim chained: claim -FROM_CHUNK(prov)-> chunk -FROM_DOCUMENT- doc{period: P}.
     """
     await store.merge_node(
         GraphNode(id=anchor_id, label="Entity", properties={}),
@@ -50,7 +50,7 @@ async def _make_anchor_with_neighbors_in_periods(
             await store.record_provenance(cid, chk, "run-1")
             await store.merge_relationship(
                 GraphRelationship(source_id=chk, target_id=doc_id,
-                                  type="CHUNKED_FROM", properties={}),
+                                  type="FROM_DOCUMENT", properties={}),
                 import_run_id="run-1",
             )
             await store.merge_relationship(
@@ -75,7 +75,7 @@ async def test_resolve_period_walks_audit_trail():
     await store.record_provenance("claim:1", "chunk:1", "run-1")
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}), "run-1",
+                          type="FROM_DOCUMENT", properties={}), "run-1",
     )
     assert await _resolve_period(store, "claim:1") == "2026-Q2"
 
@@ -130,7 +130,7 @@ async def test_get_node_history_rel_type_filter():
     await store.record_provenance("stk:1", "chunk:99", "run-1")
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:99", target_id="doc:other",
-                          type="CHUNKED_FROM", properties={}), "run-1",
+                          type="FROM_DOCUMENT", properties={}), "run-1",
     )
     await store.merge_relationship(
         GraphRelationship(source_id="stk:1", target_id="e:1",
