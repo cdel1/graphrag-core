@@ -7,7 +7,7 @@ from graphrag_core.models import GraphNode, GraphRelationship
 @pytest.mark.asyncio
 async def test_memory_store_indexes_chunked_from_edges():
     store = InMemoryGraphStore()
-    # Create a Document node + Chunk node + CHUNKED_FROM edge
+    # Create a Document node + Chunk node + FROM_DOCUMENT edge
     await store.merge_node(
         GraphNode(id="doc:1", label="Document",
                   properties={"title": "Q2 report", "period": "2026-Q2"}),
@@ -20,17 +20,17 @@ async def test_memory_store_indexes_chunked_from_edges():
     )
     await store.merge_relationship(
         GraphRelationship(source_id=chunk_id, target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-1",
     )
 
-    # The internal index used by get_audit_trail must resolve chunk -> doc
+    # The internal index used by get_provenance must resolve chunk -> doc
     assert store._chunk_to_doc.get(chunk_id) == "doc:1"
 
 
 @pytest.mark.asyncio
 async def test_chunked_from_index_updates_on_remerge():
-    """A re-merged CHUNKED_FROM edge (same triple) must keep the index in sync."""
+    """A re-merged FROM_DOCUMENT edge (same triple) must keep the index in sync."""
     store = InMemoryGraphStore()
 
     await store.merge_node(GraphNode(id="chunk:1", label="Chunk", properties={}), "run-1")
@@ -39,7 +39,7 @@ async def test_chunked_from_index_updates_on_remerge():
     # First merge: chunk:1 -> doc:1 (insert path)
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-1",
     )
     assert store._chunk_to_doc["chunk:1"] == "doc:1"
@@ -47,7 +47,7 @@ async def test_chunked_from_index_updates_on_remerge():
     # Re-merge the identical triple with updated properties (update path)
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={"updated": True}),
+                          type="FROM_DOCUMENT", properties={"updated": True}),
         import_run_id="run-2",
     )
     # Index must still be correct after the update path
@@ -68,7 +68,7 @@ async def test_chunked_from_index_different_target_is_new_row():
 
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-1",
     )
     assert store._chunk_to_doc["chunk:1"] == "doc:1"
@@ -76,7 +76,7 @@ async def test_chunked_from_index_different_target_is_new_row():
     # Different target_id -> different triple key -> new row (not an update)
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:2",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-2",
     )
     # Second insert updates the index to the latest value
@@ -104,11 +104,11 @@ async def test_memory_audit_trail_reaches_document():
     # Chunk -> Document edge
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-1",
     )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     levels = [step.level for step in trail.provenance_chain]
     assert "document" in levels
 
@@ -121,7 +121,7 @@ async def test_memory_audit_trail_reaches_document():
 @pytest.mark.asyncio
 async def test_memory_audit_trail_missing_node_returns_empty_chain():
     store = InMemoryGraphStore()
-    trail = await store.get_audit_trail("nonexistent")
+    trail = await store.get_provenance("nonexistent")
     assert trail.node_id == "nonexistent"
     assert trail.provenance_chain == []
 
@@ -134,7 +134,7 @@ async def test_memory_audit_trail_node_without_provenance_returns_node_step_only
         GraphNode(id="claim:lonely", label="Claim", properties={}),
         import_run_id="run-1",
     )
-    trail = await store.get_audit_trail("claim:lonely")
+    trail = await store.get_provenance("claim:lonely")
     levels = [s.level for s in trail.provenance_chain]
     assert levels == ["node"]
 
@@ -157,11 +157,11 @@ async def test_memory_audit_trail_deduplicates_document_step():
         await store.merge_node(GraphNode(id=chunk_id, label="Chunk", properties={}), "run-1")
         await store.merge_relationship(
             GraphRelationship(source_id=chunk_id, target_id="doc:1",
-                              type="CHUNKED_FROM", properties={}),
+                              type="FROM_DOCUMENT", properties={}),
             import_run_id="run-1",
         )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     doc_steps = [s for s in trail.provenance_chain if s.level == "document"]
     assert len(doc_steps) == 1, (
         f"expected exactly 1 document step, got {len(doc_steps)}"
@@ -209,11 +209,11 @@ async def test_neo4j_audit_trail_reaches_document(neo4j_test_store):
     await store.record_provenance("claim:1", "chunk:1", "run-1")
     await store.merge_relationship(
         GraphRelationship(source_id="chunk:1", target_id="doc:1",
-                          type="CHUNKED_FROM", properties={}),
+                          type="FROM_DOCUMENT", properties={}),
         import_run_id="run-1",
     )
 
-    trail = await store.get_audit_trail("claim:1")
+    trail = await store.get_provenance("claim:1")
     doc_step = next((s for s in trail.provenance_chain if s.level == "document"), None)
     assert doc_step is not None
     assert doc_step.id == "doc:1"

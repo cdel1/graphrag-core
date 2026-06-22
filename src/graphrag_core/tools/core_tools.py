@@ -44,15 +44,15 @@ def make_search_entities_tool(search_engine: object) -> Tool:
     )
 
 
-def make_get_audit_trail_tool(graph_store: object) -> Tool:
+def make_get_provenance_tool(graph_store: object) -> Tool:
     """Create a tool that retrieves the provenance chain for a node."""
 
     async def handler(*, node_id: str) -> ToolResult:
-        trail = await graph_store.get_audit_trail(node_id)
+        trail = await graph_store.get_provenance(node_id)
         return ToolResult(success=True, data=trail.model_dump())
 
     return Tool(
-        name="get_audit_trail",
+        name="get_provenance",
         description="Retrieve the provenance audit trail for a node",
         parameters={
             "node_id": ToolParameter(name="node_id", type="string", description="The node ID to trace"),
@@ -84,5 +84,5 @@ def register_core_tools(library: ToolLibrary, graph_store: object, search_engine
     """Register all 4 domain-agnostic core tools."""
     library.register(make_get_entity_tool(graph_store))
     library.register(make_search_entities_tool(search_engine))
-    library.register(make_get_audit_trail_tool(graph_store))
+    library.register(make_get_provenance_tool(graph_store))
     library.register(make_get_related_tool(graph_store))

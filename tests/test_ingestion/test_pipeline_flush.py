@@ -5,7 +5,7 @@ import pytest
 
 from graphrag_core.exceptions import GraphStoreError
 from graphrag_core.ingestion.pipeline import IngestionPipeline
-from graphrag_core.models import ChunkConfig, DocumentChunk, ParsedDocument
+from graphrag_core.models import ChunkConfig, Chunk, ParsedDocument
 
 
 class _FakeParser:
@@ -14,8 +14,8 @@ class _FakeParser:
 
 
 class _FakeChunker:
-    def chunk(self, parsed: ParsedDocument, config: ChunkConfig) -> list[DocumentChunk]:
-        return [DocumentChunk(id="chunk:1", text=parsed.sections[0].text)]
+    def chunk(self, parsed: ParsedDocument, config: ChunkConfig) -> list[Chunk]:
+        return [Chunk(id="chunk:1", text=parsed.sections[0].text)]
 
 
 def _metadata():

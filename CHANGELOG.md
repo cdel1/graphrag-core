@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-06-22
+
+### BREAKING
+
+Lexical-graph names aligned to `neo4j-graphrag` convention per [ADR-0040](https://github.com/cdel1/tessera/blob/main/docs/adr/0040-lexical-graph-interface-contract.md) (BB1-07).
+
+**Renamed public symbols:**
+
+- Pydantic model `DocumentChunk` → `Chunk`
+- Provenance edge `SOURCED` → `FROM_CHUNK` (direction flipped: edge now points node→chunk)
+- Provenance edge `CHUNKED_FROM` → `FROM_DOCUMENT` 
+- Read API `get_audit_trail()` → `get_provenance()` (signature unchanged)
+- Model `AuditTrail` → `ProvenanceTrail`
+
+**Added:**
+
+- `NEXT_CHUNK` adjacency between adjacent chunks in a document stream (BB1-07)
+- Lexical-graph contract declared in `graph/INTERFACE.md` — covers node types, provenance cardinality, chunk adjacency invariants, and idempotency guarantees
+
+### Migration
+
+Consumers of `graphrag-core 0.13.0` must:
+
+1. Re-ingest all documents (graph layer requires structural changes to node labels and edge cardinality)
+2. Update imports and API calls:
+   - `from graphrag_core import DocumentChunk` → `from graphrag_core import Chunk`
+   - `.get_audit_trail()` → `.get_provenance()`
+   - `AuditTrail` model references → `ProvenanceTrail`
+3. Update edge-traversal logic to account for flipped `FROM_CHUNK` direction (consumer code querying provenance must reverse query direction)
+4. Bump pinned dependency: `graphrag-core>=0.14.0`
+
 ## [0.13.0] — 2026-06-19
 
 ### BREAKING

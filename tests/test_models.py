@@ -1,11 +1,11 @@
 from datetime import date, datetime
 
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     ChunkConfig,
     ChunkExtractionResult,
     Community,
-    DocumentChunk,
+    Chunk,
     DocumentMetadata,
     ExtractionResult,
     ExtractedNode,
@@ -116,12 +116,12 @@ class TestIngestionModels:
         assert config.overlap == 50
 
     def test_document_chunk(self):
-        chunk = DocumentChunk(id="c1", text="Hello world")
+        chunk = Chunk(id="c1", text="Hello world")
         assert chunk.embedding is None
         assert chunk.chunk_type == "text"
 
     def test_document_chunk_with_embedding(self):
-        chunk = DocumentChunk(
+        chunk = Chunk(
             id="c2",
             text="Hello",
             embedding=[0.1, 0.2, 0.3],
@@ -223,8 +223,8 @@ class TestGraphModels:
         )
         assert step.level == "chunk"
 
-    def test_audit_trail(self):
-        trail = AuditTrail(
+    def test_provenance_trail(self):
+        trail = ProvenanceTrail(
             node_id="g1",
             provenance_chain=[
                 ProvenanceStep(level="node", id="g1", metadata={}),

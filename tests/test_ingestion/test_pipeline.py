@@ -24,9 +24,9 @@ class FakeChunker:
     """Fake Chunker that returns one chunk per section."""
 
     def chunk(self, doc, config):
-        from graphrag_core.models import DocumentChunk
+        from graphrag_core.models import Chunk
         return [
-            DocumentChunk(id=f"chunk-{i}", text=s.text, position=i)
+            Chunk(id=f"chunk-{i}", text=s.text, position=i)
             for i, s in enumerate(doc.sections)
         ]
 

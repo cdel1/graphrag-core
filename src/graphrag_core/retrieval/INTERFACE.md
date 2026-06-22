@@ -10,7 +10,7 @@
 
 ## `EmbeddingModel`
 
-Provider-agnostic interface for dense-vector encoding of text. Used by `IngestionPipeline` to attach embeddings to `DocumentChunk`s and by `SearchEngine` to embed queries for vector search.
+Provider-agnostic interface for dense-vector encoding of text. Used by `IngestionPipeline` to attach embeddings to `Chunk`s and by `SearchEngine` to embed queries for vector search.
 
 ### Interface
 
@@ -34,6 +34,10 @@ async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 - Latency dominated by provider call; orchestrate concurrency at caller level.
 - No graph I/O.
+
+### Embedding contract
+
+Chunk embeddings are stored as the `embedding` property on `:Chunk` nodes. All chunks in one graph share a single `EmbeddingModel` / vector space (single-space invariant); mixing models within a corpus breaks cross-lingual comparability. A vector index is a reference-implementation detail (Neo4j HNSW / InMemory linear scan) — **not** a contract obligation. Embedding attachment is optional at L1; a corpus ingested without an `EmbeddingModel` is valid and will lack the `embedding` property on its chunks.
 
 ### Roadmap
 

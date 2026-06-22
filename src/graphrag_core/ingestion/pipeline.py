@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from graphrag_core.interfaces import Chunker, DocumentParser, EmbeddingModel
-from graphrag_core.models import ChunkConfig, DocumentChunk, GraphNode, GraphRelationship
+from graphrag_core.models import ChunkConfig, Chunk, GraphNode, GraphRelationship
 
 if TYPE_CHECKING:
     from graphrag_core.interfaces import GraphStore
@@ -32,7 +32,7 @@ class IngestionPipeline:
         *,
         graph_store: "GraphStore | None" = None,
         import_run_id: str | None = None,
-    ) -> list[DocumentChunk]:
+    ) -> list[Chunk]:
         parsed = await self._parser.parse(source, content_type)
         chunks = self._chunker.chunk(parsed, config or ChunkConfig())
 
@@ -59,7 +59,7 @@ class IngestionPipeline:
                 import_run_id,
             )
             for chunk in chunks:
-                # :Chunk node must exist before CHUNKED_FROM edge — Neo4j MERGE
+                # :Chunk node must exist before FROM_DOCUMENT edge — Neo4j MERGE
                 # requires both endpoints to be matchable.
                 chunk_props: dict[str, object] = {"text": chunk.text}
                 if chunk.page is not None:
@@ -76,7 +76,17 @@ class IngestionPipeline:
                     GraphRelationship(
                         source_id=chunk.id,
                         target_id=doc_id,
-                        type="CHUNKED_FROM",
+                        type="FROM_DOCUMENT",
+                        properties={},
+                    ),
+                    import_run_id,
+                )
+            for prev, nxt in zip(chunks, chunks[1:]):
+                await graph_store.merge_relationship(
+                    GraphRelationship(
+                        source_id=prev.id,
+                        target_id=nxt.id,
+                        type="NEXT_CHUNK",
                         properties={},
                     ),
                     import_run_id,

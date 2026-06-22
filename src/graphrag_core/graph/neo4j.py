@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     GraphNode,
     GraphRelationship,
     OntologySchema,
@@ -91,7 +91,7 @@ class Neo4jGraphStore:
             "MERGE (c:Chunk {id: $chunk_id}) "
             "WITH c "
             "MATCH (n {id: $node_id}) "
-            "MERGE (c)-[r:SOURCED]->(n) "
+            "MERGE (n)-[r:FROM_CHUNK]->(c) "
             "SET r._import_run_id = $run_id"
         )
         async with self._driver.session(database=self._database) as session:
@@ -116,11 +116,11 @@ class Neo4jGraphStore:
             props.pop("_updated_at", None)
             return GraphNode(id=node_id_val, label=label, properties=props)
 
-    async def get_audit_trail(self, node_id: str) -> AuditTrail:
+    async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         query = (
             "MATCH (n {id: $id}) "
-            "OPTIONAL MATCH (c:Chunk)-[:SOURCED]->(n) "
-            "OPTIONAL MATCH (c)-[:CHUNKED_FROM]->(d:Document) "
+            "OPTIONAL MATCH (n)-[:FROM_CHUNK]->(c:Chunk) "
+            "OPTIONAL MATCH (c)-[:FROM_DOCUMENT]->(d:Document) "
             "RETURN n, labels(n) AS node_labels, "
             "       collect(DISTINCT c.id) AS chunk_ids, "
             "       collect(DISTINCT CASE WHEN d IS NOT NULL THEN {id: d.id, props: properties(d)} END) AS docs"
@@ -145,7 +145,7 @@ class Neo4jGraphStore:
                                                 metadata=doc["props"]))
                     seen.add(doc["id"])
 
-            return AuditTrail(node_id=node_id, provenance_chain=chain)
+            return ProvenanceTrail(node_id=node_id, provenance_chain=chain)
 
     async def get_related(
         self, node_id: str, rel_type: str | None = None, depth: int = 1
@@ -214,7 +214,7 @@ class Neo4jGraphStore:
             return nodes
 
     async def count_relationships(self) -> int:
-        query = "MATCH ()-[r]->() WHERE type(r) <> 'SOURCED' RETURN count(r) AS cnt"
+        query = "MATCH ()-[r]->() WHERE type(r) <> 'FROM_CHUNK' RETURN count(r) AS cnt"
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query)
             record = await result.single()

@@ -1,11 +1,11 @@
 """BB7: Temporal tools over the provenance-aware audit trail.
 
-These tools route through GraphStore.get_audit_trail to resolve a node's
+These tools route through GraphStore.get_provenance to resolve a node's
 source-document period — no hardcoded Lacuna labels or edge names. The
 optional rel_type kwarg lets callers filter neighbors at the call site
 (e.g., Lacuna passes rel_type="ABOUT" for claim-only history). Without
 rel_type, all incident edges (including structural provenance edges like
-EXTRACTED_FROM, CHUNKED_FROM) are counted as neighbors — almost never the
+EXTRACTED_FROM, FROM_DOCUMENT) are counted as neighbors — almost never the
 desired semantic.
 """
 
@@ -59,7 +59,7 @@ class TrendSignal:
 
 async def _resolve_period(graph_store: "GraphStore", node_id: str) -> str | None:
     """Walk the audit trail; return the document-level period or None."""
-    trail = await graph_store.get_audit_trail(node_id)
+    trail = await graph_store.get_provenance(node_id)
     for step in trail.provenance_chain:
         if step.level == "document":
             return step.metadata.get("period")

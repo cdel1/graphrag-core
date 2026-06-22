@@ -63,7 +63,7 @@ class TestInMemoryGraphStoreWrite:
 
         await store.record_provenance(node_id="n1", chunk_id="chunk-0", import_run_id="run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         assert trail.node_id == "n1"
         assert len(trail.provenance_chain) >= 1
         chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
@@ -138,7 +138,7 @@ class TestInMemoryGraphStoreRead:
         store = InMemoryGraphStore()
         await store.merge_node(GraphNode(id="n1", label="Company", properties={"name": "Acme"}), "run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         assert trail.node_id == "n1"
         assert len(trail.provenance_chain) == 1
         assert trail.provenance_chain[0].level == "node"
@@ -279,7 +279,7 @@ class TestInMemoryGraphStoreClear:
         assert await store.list_relationships() == []
         assert await store.count_relationships() == 0
         assert await store.get_node("a") is None
-        assert (await store.get_audit_trail("a")).provenance_chain == []
+        assert (await store.get_provenance("a")).provenance_chain == []
         # schema must be gone too: a name-less node is no longer a violation
         await store.merge_node(GraphNode(id="c", label="Entity", properties={}), "run-2")
         assert await store.validate_schema() == []
@@ -327,3 +327,32 @@ class TestInMemoryGraphStoreStrictMerge:
         await store.merge_node(GraphNode(id="b", label="Entity", properties={}), "run-1")
         rel = GraphRelationship(source_id="a", target_id="b", type="REL", properties={})
         assert await store.merge_relationship(rel, "run-1") == "a-REL-b"
+
+
+class TestInMemoryProvenanceEdgeDirection:
+    @pytest.mark.asyncio
+    async def test_provenance_edge_is_node_to_chunk_from_chunk(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="claim-1", label="Claim", properties={}), "run-1")
+        await store.record_provenance("claim-1", "chunk-1", "run-1")
+        trail = await store.get_provenance("claim-1")
+        chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
+        assert [s.id for s in chunk_steps] == ["chunk-1"]
+
+
+class TestFromDocumentEdge:
+    @pytest.mark.asyncio
+    async def test_provenance_reaches_document_via_from_document(self):
+        from graphrag_core.graph.memory import InMemoryGraphStore
+
+        store = InMemoryGraphStore()
+        await store.merge_node(GraphNode(id="doc-1", label="Document", properties={"title": "T"}), "run-1")
+        await store.merge_node(GraphNode(id="chunk-1", label="Chunk", properties={}), "run-1")
+        await store.merge_node(GraphNode(id="claim-1", label="Claim", properties={}), "run-1")
+        await store.merge_relationship(
+            GraphRelationship(source_id="chunk-1", target_id="doc-1", type="FROM_DOCUMENT", properties={}), "run-1")
+        await store.record_provenance("claim-1", "chunk-1", "run-1")
+        trail = await store.get_provenance("claim-1")
+        assert any(s.level == "document" and s.id == "doc-1" for s in trail.provenance_chain)

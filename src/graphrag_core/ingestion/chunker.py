@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from graphrag_core.models import ChunkConfig, DocumentChunk, ParsedDocument
+from graphrag_core.models import ChunkConfig, Chunk, ParsedDocument
 
 
 class TokenChunker:
     """Splits documents into chunks by whitespace token count with overlap."""
 
-    def chunk(self, doc: ParsedDocument, config: ChunkConfig) -> list[DocumentChunk]:
+    def chunk(self, doc: ParsedDocument, config: ChunkConfig) -> list[Chunk]:
         words: list[tuple[str, int | None]] = []
         for section in doc.sections:
             for word in section.text.split():
@@ -18,7 +18,7 @@ class TokenChunker:
             return []
 
         sha_prefix = doc.metadata.sha256[:12]
-        chunks: list[DocumentChunk] = []
+        chunks: list[Chunk] = []
         start = 0
         position = 0
 
@@ -30,7 +30,7 @@ class TokenChunker:
             text = " ".join(w for w, _ in chunk_words)
             page = chunk_words[0][1] if chunk_words else None
 
-            chunks.append(DocumentChunk(
+            chunks.append(Chunk(
                 id=f"{sha_prefix}-{position}",
                 text=text,
                 page=page,

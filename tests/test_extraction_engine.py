@@ -5,7 +5,7 @@ import pytest
 from graphrag_core.extraction.engine import LLMExtractionEngine
 from graphrag_core.models import (
     ChunkExtractionResult,
-    DocumentChunk,
+    Chunk,
     ExtractedNode,
     ExtractedRelationship,
     ImportRun,
@@ -72,7 +72,7 @@ class TestExtractionEngineStructuredOutput:
         engine = LLMExtractionEngine(llm)
 
         result = await engine.extract(
-            chunks=[DocumentChunk(id="chunk-1", text="Alice works at Acme.")],
+            chunks=[Chunk(id="chunk-1", text="Alice works at Acme.")],
             schema=SIMPLE_SCHEMA,
             import_run=SIMPLE_IMPORT_RUN,
         )
@@ -94,7 +94,7 @@ class TestExtractionEngineStructuredOutput:
         engine = LLMExtractionEngine(llm)
 
         result = await engine.extract(
-            chunks=[DocumentChunk(id="chunk-1", text="Alice met Zorg.")],
+            chunks=[Chunk(id="chunk-1", text="Alice met Zorg.")],
             schema=SIMPLE_SCHEMA,
             import_run=SIMPLE_IMPORT_RUN,
         )
@@ -108,7 +108,7 @@ class TestExtractionEngineStructuredOutput:
         engine = LLMExtractionEngine(llm)
 
         result = await engine.extract(
-            chunks=[DocumentChunk(id="chunk-1", text="Nothing here.")],
+            chunks=[Chunk(id="chunk-1", text="Nothing here.")],
             schema=SIMPLE_SCHEMA,
             import_run=SIMPLE_IMPORT_RUN,
         )

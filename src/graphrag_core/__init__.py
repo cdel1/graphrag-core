@@ -32,7 +32,7 @@ from graphrag_core.llm import BaseLLMClient
 from graphrag_core.models import (
     ChunkExtractionResult,
     Community,
-    DocumentChunk,
+    Chunk,
     ExtractionResult,
     GraphNode,
     ImportRun,
@@ -85,7 +85,7 @@ __all__ = [
     # Models
     "ChunkExtractionResult",
     "Community",
-    "DocumentChunk",
+    "Chunk",
     "ExtractionResult",
     "GraphNode",
     "ImportRun",

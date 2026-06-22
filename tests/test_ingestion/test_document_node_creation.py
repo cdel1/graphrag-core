@@ -1,4 +1,4 @@
-"""BB1 v0.6.0: IngestionPipeline writes :Document nodes + CHUNKED_FROM edges."""
+"""BB1 v0.6.0: IngestionPipeline writes :Document nodes + FROM_DOCUMENT edges."""
 
 import pytest
 from graphrag_core.ingestion.pipeline import IngestionPipeline
@@ -47,7 +47,7 @@ async def test_ingest_writes_document_node(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ingest_writes_chunked_from_edges(monkeypatch):
+async def test_ingest_writes_from_document_edges(monkeypatch):
     parser = TextParser()
     chunker = TokenChunker()
     metadata = DocumentMetadata(
@@ -64,7 +64,7 @@ async def test_ingest_writes_chunked_from_edges(monkeypatch):
         graph_store=store, import_run_id="run-1",
     )
 
-    rels = [r for r in await store.list_relationships() if r.type == "CHUNKED_FROM"]
+    rels = [r for r in await store.list_relationships() if r.type == "FROM_DOCUMENT"]
     assert len(rels) == len(chunks)
     assert all(r.target_id == "doc:sha-2" for r in rels)
 
@@ -168,8 +168,8 @@ async def test_ingest_raises_if_graph_store_without_import_run_id(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ingest_creates_chunk_nodes_before_chunked_from_edges(monkeypatch):
-    """Regression: BB1 must merge :Chunk nodes before CHUNKED_FROM edges so
+async def test_ingest_creates_chunk_nodes_before_from_document_edges(monkeypatch):
+    """Regression: BB1 must merge :Chunk nodes before FROM_DOCUMENT edges so
     Neo4j MERGE-with-MATCH-endpoints semantics work end-to-end (see v0.6.1 fix).
 
     The InMemoryGraphStore is permissive (relationships don't require nodes
@@ -228,7 +228,7 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
     neo4j_test_store, monkeypatch,
 ):
     """Regression: with Neo4j, BB1 must merge :Chunk nodes BEFORE the
-    CHUNKED_FROM edges or merge_relationship's MATCH (a),(b) returns None
+    FROM_DOCUMENT edges or merge_relationship's MATCH (a),(b) returns None
     and the call raises TypeError. The InMemoryGraphStore path is
     permissive and won't catch this — only a live-Neo4j test will.
     """
@@ -262,11 +262,74 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
         n_chunks_in_graph = (await result.single())["n"]
     assert n_chunks_in_graph == len(chunks)
 
-    # CHUNKED_FROM edges link every chunk to the document
+    # FROM_DOCUMENT edges link every chunk to the document
     async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
         result = await session.run(
-            "MATCH (c:Chunk)-[:CHUNKED_FROM]->(d:Document {id: $id}) RETURN count(c) AS n",
+            "MATCH (c:Chunk)-[:FROM_DOCUMENT]->(d:Document {id: $id}) RETURN count(c) AS n",
             id="doc:neo4j-smoke",
         )
         n_edges = (await result.single())["n"]
     assert n_edges == len(chunks)
+
+
+# ---------------------------------------------------------------------------
+# BB1-07: NEXT_CHUNK adjacency edges
+
+
+@pytest.mark.asyncio
+async def test_ingest_writes_next_chunk_adjacency(monkeypatch):
+    """BB1-07: consecutive chunks linked (prev)-[:NEXT_CHUNK]->(next), single-directed."""
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="adj", source="s", doc_type="d",
+        date=None, quarter=None, period="2026-Q2", sha256="adj-1",
+    )
+    # Long enough to produce multiple chunks
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 200))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    chunks = await pipeline.ingest(
+        b"body", "text/plain", config=ChunkConfig(max_tokens=10),
+        graph_store=store, import_run_id="run-1",
+    )
+
+    assert len(chunks) >= 2, "need multiple chunks to test adjacency"
+
+    next_chunk_rels = [r for r in await store.list_relationships() if r.type == "NEXT_CHUNK"]
+
+    # exactly one edge per consecutive pair
+    assert len(next_chunk_rels) == len(chunks) - 1
+
+    # edges map consecutively (order-independent assertion)
+    adjacency = {r.source_id: r.target_id for r in next_chunk_rels}
+    for prev, nxt in zip(chunks, chunks[1:]):
+        assert adjacency[prev.id] == nxt.id
+
+    # no PREV_CHUNK reverse edges
+    prev_chunk_rels = [r for r in await store.list_relationships() if r.type == "PREV_CHUNK"]
+    assert len(prev_chunk_rels) == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_single_chunk_no_next_chunk_edges(monkeypatch):
+    """BB1-07: single-chunk doc writes zero NEXT_CHUNK edges."""
+    parser = TextParser()
+    chunker = TokenChunker()
+    metadata = DocumentMetadata(
+        title="single", source="s", doc_type="d",
+        date=None, quarter=None, period="2026-Q2", sha256="single-1",
+    )
+    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="short"))
+
+    pipeline = IngestionPipeline(parser, chunker)
+    store = InMemoryGraphStore()
+    chunks = await pipeline.ingest(
+        b"short", "text/plain", config=ChunkConfig(),
+        graph_store=store, import_run_id="run-1",
+    )
+
+    assert len(chunks) == 1
+    next_chunk_rels = [r for r in await store.list_relationships() if r.type == "NEXT_CHUNK"]
+    assert len(next_chunk_rels) == 0

@@ -87,7 +87,7 @@ class GraphStoreContractTests:
         assert await store.list_relationships() == []
         assert await store.count_relationships() == 0
         assert await store.get_node("a") is None
-        assert (await store.get_audit_trail("a")).provenance_chain == []
+        assert (await store.get_provenance("a")).provenance_chain == []
         await store.merge_node(_node("c"), "run-2")  # violates old schema only
         assert await store.validate_schema() == []
 
@@ -134,12 +134,12 @@ class GraphStoreContractTests:
         store = await self._store()
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
-        # Document traversal is expected to follow CHUNKED_FROM edges (ADR-0001).
-        await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
+        # Document traversal is expected to follow FROM_DOCUMENT edges.
+        await store.merge_relationship(_rel("chunk-1", "doc-1", "FROM_DOCUMENT"), "run-1")
         await store.merge_node(_node("entity-1", name="E"), "run-1")
         await store.record_provenance("entity-1", "chunk-1", "run-1")
 
-        trail = await store.get_audit_trail("entity-1")
+        trail = await store.get_provenance("entity-1")
         levels = [step.level for step in trail.provenance_chain]
         assert "node" in levels
         assert "chunk" in levels
@@ -162,7 +162,7 @@ class GraphStoreContractTests:
         store = await self._store()
         await store.merge_node(_node("doc-1", label="Document", title="T"), "run-1")
         await store.merge_node(_node("chunk-1", label="Chunk", text="body"), "run-1")
-        await store.merge_relationship(_rel("chunk-1", "doc-1", "CHUNKED_FROM"), "run-1")
+        await store.merge_relationship(_rel("chunk-1", "doc-1", "FROM_DOCUMENT"), "run-1")
         await store.merge_node(_node("entity-1", name="E"), "run-1")
         await store.record_provenance("entity-1", "chunk-1", "run-1")
         await store.flush()
@@ -171,7 +171,7 @@ class GraphStoreContractTests:
 
         assert await reborn.get_node("entity-1") is not None
         assert await reborn.count_relationships() == 1
-        trail = await reborn.get_audit_trail("entity-1")
+        trail = await reborn.get_provenance("entity-1")
         levels = [step.level for step in trail.provenance_chain]
         assert "document" in levels  # _chunk_to_doc survived (S5 bug class)
 

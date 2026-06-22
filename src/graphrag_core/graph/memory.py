@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
-    AuditTrail,
+    ProvenanceTrail,
     GraphNode,
     GraphRelationship,
     OntologySchema,
@@ -42,11 +42,11 @@ class InMemoryGraphStore:
                 and existing.type == rel.type
             ):
                 self._relationships[i] = rel
-                if rel.type == "CHUNKED_FROM":
+                if rel.type == "FROM_DOCUMENT":
                     self._chunk_to_doc[rel.source_id] = rel.target_id
                 return f"{rel.source_id}-{rel.type}-{rel.target_id}"
         self._relationships.append(rel)
-        if rel.type == "CHUNKED_FROM":
+        if rel.type == "FROM_DOCUMENT":
             self._chunk_to_doc[rel.source_id] = rel.target_id
         return f"{rel.source_id}-{rel.type}-{rel.target_id}"
 
@@ -59,7 +59,7 @@ class InMemoryGraphStore:
     async def get_node(self, node_id: str) -> GraphNode | None:
         return self._nodes.get(node_id)
 
-    async def get_audit_trail(self, node_id: str) -> AuditTrail:
+    async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         chain: list[ProvenanceStep] = []
         node = self._nodes.get(node_id)
         if node:
@@ -73,7 +73,7 @@ class InMemoryGraphStore:
                 metadata = dict(doc_node.properties) if doc_node else {}
                 chain.append(ProvenanceStep(level="document", id=doc_id, metadata=metadata))
                 seen_docs.add(doc_id)
-        return AuditTrail(node_id=node_id, provenance_chain=chain)
+        return ProvenanceTrail(node_id=node_id, provenance_chain=chain)
 
     async def get_related(
         self, node_id: str, rel_type: str | None = None, depth: int = 1

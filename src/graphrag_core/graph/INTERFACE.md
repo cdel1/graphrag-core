@@ -3,7 +3,7 @@
 **Protocols:** `GraphStore`, `CommunityDetector`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 131–164
 **Default implementations:** [`Neo4jGraphStore`](neo4j.py), [`MemoryGraphStore`](memory.py) (for tests)
-**Vocabulary:** Tier 1/2 ontology, `EXTRACTED_FROM`, `ASSERTS`, `ABOUT`, audit trail — see `tessera/CONTEXT.md`
+**Vocabulary:** Tier 1/2 ontology, `FROM_CHUNK`, `FROM_DOCUMENT`, `NEXT_CHUNK`, `ASSERTS`, `ABOUT` — see `tessera/CONTEXT.md`
 
 ---
 
@@ -11,7 +11,7 @@
 
 The provenance-native graph backend. Every node and every edge must be traceable to a source `ImportRun`.
 
-`GraphStore`'s `Document` + `DocumentChunk` nodes and the `CHUNKED_FROM` / `EXTRACTED_FROM` edges form the *lexical layer* of a Lacuna-style two-layer graph (lexical + tiered ontology): the substrate beneath Tier 1 that lets every extracted node trace back to the exact passages that produced it. Consumers building plain lexical-graph use cases (passage retrieval, embedding search, source attribution) use only this substrate; consumers building tiered-intelligence applications layer Tier-1 / Tier-2 / Tier-3 contents on top.
+`GraphStore`'s `Document` + `Chunk` nodes and the `FROM_DOCUMENT` / `FROM_CHUNK` edges form the *lexical layer*: the substrate that lets every extracted node trace back to the exact passages that produced it. Consumers building plain lexical-graph use cases (passage retrieval, embedding search, source attribution) use only this substrate; consumers building tiered-intelligence applications layer ontology contents on top.
 
 ### Interface
 
@@ -21,7 +21,7 @@ async def merge_relationship(self, rel: GraphRelationship, import_run_id: str) -
 async def record_provenance(self, node_id: str, chunk_id: str, import_run_id: str) -> None: ...
 
 async def get_node(self, node_id: str) -> GraphNode | None: ...
-async def get_audit_trail(self, node_id: str) -> AuditTrail: ...
+async def get_provenance(self, node_id: str) -> ProvenanceTrail: ...
 async def get_related(self, node_id: str, rel_type: str | None = None, depth: int = 1) -> list[GraphNode]: ...
 
 async def apply_schema(self, schema: OntologySchema) -> None: ...
@@ -36,10 +36,32 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 
 - **`merge_node`** — Idempotent on `node.id`. If a node with this ID exists, properties are merged (last-write-wins on conflicts). Returns the canonical node ID (may differ if the implementation canonicalizes IDs). The `import_run_id` is recorded as provenance regardless of whether the node was newly created or merged.
 - **`merge_relationship`** — Idempotent on `(source_id, target_id, type)`. If an edge with the same triple exists, properties are merged. `import_run_id` is recorded.
-- **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the lineage edge `(:GraphNode)-[:EXTRACTED_FROM]->(:DocumentChunk)`.
-- **`get_audit_trail`** — Must return the full provenance chain reaching from the node through its chunks to their source documents. Emits ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. **The `level="node"` step is always first. Ordering of `chunk` and `document` steps within the chain is implementation-defined and varies by backend; consumers must filter by `step.level`, not by position.** The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns an `AuditTrail` with `provenance_chain=[]`, not `None`.
+- **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the lineage edge `(:GraphNode)-[:FROM_CHUNK]->(:Chunk)`.
+- **`get_provenance`** — Must return the full provenance chain reaching from the node through its chunks to their source documents. Emits ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. **The `level="node"` step is always first. Ordering of `chunk` and `document` steps within the chain is implementation-defined and varies by backend; consumers must filter by `step.level`, not by position.** The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns a `ProvenanceTrail` with `provenance_chain=[]`, not `None`.
 - **`get_related`** — `depth=1` returns immediate neighbors. `depth=2` includes neighbors-of-neighbors. The caller pays for traversal cost — depth >3 is a code smell.
 - **`list_nodes` / `list_relationships`** — May be expensive on large graphs. Used by Tier 2 computations (community detection, divergence detection). Implementations should stream or paginate if backing store supports it; current Protocol returns full list — callers must accept O(n) memory.
+
+### Lexical-graph contract
+
+The full lexical chain is:
+
+```
+(node)-[:FROM_CHUNK]->(:Chunk)-[:FROM_DOCUMENT]->(:Document)
+```
+
+Reading-order adjacency between chunks:
+
+```
+(:Chunk)-[:NEXT_CHUNK]->(:Chunk)
+```
+
+`(:Chunk)-[:NEXT_CHUNK]->(:Chunk)` is a single directed edge pointing from each chunk to the next in reading order within the same document. There is no `PREV_CHUNK` reverse edge at L1.
+
+#### L1/L2 walker boundary
+
+`get_provenance(node_id)` returns the lexical provenance of a single node: it traverses `node → FROM_CHUNK → Chunk → FROM_DOCUMENT → Document` and returns a `ProvenanceTrail` scoped to that node alone. It does not traverse higher-layer or ontology edges. Composing provenance across multiple related nodes or higher tiers is the consumer's responsibility.
+
+---
 
 ### Error modes
 
@@ -134,9 +156,9 @@ class MyGraphStore:
     async def merge_relationship(self, rel, import_run_id): ...
     async def record_provenance(self, node_id, chunk_id, import_run_id): ...
     async def get_node(self, node_id): ...
-    async def get_audit_trail(self, node_id):
+    async def get_provenance(self, node_id):
         # Traverse: node -> chunks -> documents -> data sources.
-        # Return AuditTrail(node_id, provenance_chain=[ProvenanceStep, ...]).
+        # Return ProvenanceTrail(node_id, provenance_chain=[ProvenanceStep, ...]).
         ...
     async def get_related(self, node_id, rel_type=None, depth=1): ...
     async def apply_schema(self, schema): ...
@@ -150,9 +172,9 @@ class MyGraphStore:
 
 - `merge_node` is idempotent (call twice with same node, count = 1).
 - `merge_relationship` is idempotent (call twice with same triple, count = 1).
-- `get_audit_trail` returns the full chain for a node ingested via `IngestionPipeline`. The chain has at least one `level="document"` step; that step's `metadata` carries `period` (when set on the source document).
-- `get_audit_trail` emits exactly one `level="document"` step per unique source document (dedup invariant — important when a node's chunks span the same doc).
-- `get_audit_trail` returns `AuditTrail(node_id=N, provenance_chain=[])` for a node not in the store.
+- `get_provenance` returns the full chain for a node ingested via `IngestionPipeline`. The chain has at least one `level="document"` step; that step's `metadata` carries `period` (when set on the source document).
+- `get_provenance` emits exactly one `level="document"` step per unique source document (dedup invariant — important when a node's chunks span the same doc).
+- `get_provenance` returns `ProvenanceTrail(node_id=N, provenance_chain=[])` for a node not in the store.
 - After `apply_schema`, Neo4j has a `:Document(id)` uniqueness constraint.
 - `get_related(depth=1)` returns only direct neighbors.
 - `list_nodes` returns every node ever merged (no filtering by import_run_id).

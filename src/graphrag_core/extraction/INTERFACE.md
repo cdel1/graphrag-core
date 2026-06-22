@@ -9,14 +9,14 @@
 
 ## `ExtractionEngine`
 
-Extracts Tier-1 entities and relationships from a list of `DocumentChunk`s, guided by an `OntologySchema`.
+Extracts Tier-1 entities and relationships from a list of `Chunk`s, guided by an `OntologySchema`.
 
 ### Interface
 
 ```python
 async def extract(
     self,
-    chunks: list[DocumentChunk],
+    chunks: list[Chunk],
     schema: OntologySchema,
     import_run: ImportRun,
 ) -> ExtractionResult: ...

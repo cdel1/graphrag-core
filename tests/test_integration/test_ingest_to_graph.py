@@ -13,7 +13,7 @@ NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 from graphrag_core.llm.base import BaseLLMClient
 from graphrag_core.models import (
     ChunkConfig,
-    DocumentChunk,
+    Chunk,
     DocumentMetadata,
     ImportRun,
     NodeTypeDefinition,
@@ -148,7 +148,7 @@ class TestIngestToGraph:
         assert related[0].id == "company-acme"
 
         # Verify: provenance chain exists
-        trail = await neo4j_store.get_audit_trail("person-alice")
+        trail = await neo4j_store.get_provenance("person-alice")
         assert trail.node_id == "person-alice"
         levels = [s.level for s in trail.provenance_chain]
         assert "node" in levels

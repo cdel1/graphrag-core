@@ -80,7 +80,7 @@ class TestNeo4jProvenance:
         await store.merge_node(GraphNode(id="n1", label="Company", properties={"name": "Acme"}), "run-1")
         await store.record_provenance(node_id="n1", chunk_id="chunk-0", import_run_id="run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         assert trail.node_id == "n1"
         assert len(trail.provenance_chain) >= 2
         levels = [s.level for s in trail.provenance_chain]
@@ -93,7 +93,7 @@ class TestNeo4jProvenance:
         await store.record_provenance(node_id="n1", chunk_id="chunk-0", import_run_id="run-1")
         await store.record_provenance(node_id="n1", chunk_id="chunk-1", import_run_id="run-1")
 
-        trail = await store.get_audit_trail("n1")
+        trail = await store.get_provenance("n1")
         chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
         assert len(chunk_steps) == 2
         chunk_ids = {s.id for s in chunk_steps}
@@ -188,3 +188,28 @@ class TestNeo4jClear:
         await store.clear()
         assert await store.list_nodes() == []
         assert await store.count_relationships() == 0
+
+
+class TestNeo4jProvenanceEdgeDirection:
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_provenance_edge_is_node_to_chunk_from_chunk(self, store):
+        await store.merge_node(GraphNode(id="claim-1", label="Claim", properties={}), "run-1")
+        await store.record_provenance("claim-1", "chunk-1", "run-1")
+        trail = await store.get_provenance("claim-1")
+        chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
+        assert [s.id for s in chunk_steps] == ["chunk-1"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_from_chunk_edge_direction(self, store):
+        from neo4j import AsyncDriver
+
+        await store.merge_node(GraphNode(id="claim-1", label="Claim", properties={}), "run-1")
+        await store.record_provenance("claim-1", "chunk-1", "run-1")
+        async with store._driver.session(database=store._database) as session:
+            result = await session.run(
+                "MATCH (n {id:'claim-1'})-[:FROM_CHUNK]->(c:Chunk {id:'chunk-1'}) RETURN count(*) AS c"
+            )
+            rec = await result.single()
+        assert rec["c"] == 1

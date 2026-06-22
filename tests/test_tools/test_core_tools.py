@@ -68,13 +68,13 @@ class TestSearchEntitiesTool:
         assert len(result.data) >= 1
 
 
-class TestGetAuditTrailTool:
+class TestGetProvenanceTool:
     @pytest.mark.asyncio
     async def test_returns_provenance(self):
-        from graphrag_core.tools.core_tools import make_get_audit_trail_tool
+        from graphrag_core.tools.core_tools import make_get_provenance_tool
 
         store = await _store_with_data()
-        tool = make_get_audit_trail_tool(store)
+        tool = make_get_provenance_tool(store)
 
         result = await tool.handler(node_id="n1")
         assert result.success is True
@@ -110,4 +110,4 @@ class TestRegisterCoreTools:
 
         tools = library.list_tools()
         names = {t.name for t in tools}
-        assert names == {"get_entity", "search_entities", "get_audit_trail", "get_related"}
+        assert names == {"get_entity", "search_entities", "get_provenance", "get_related"}

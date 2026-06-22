@@ -4,7 +4,7 @@ import pytest
 
 from graphrag_core.models import (
     ChunkConfig,
-    DocumentChunk,
+    Chunk,
     DocumentMetadata,
     ParsedDocument,
     TextSection,
