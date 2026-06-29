@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.exceptions import MissingEndpointError
-from graphrag_core.graph._serialization import _decode_props, _encode_props
+from graphrag_core.graph._serialization import _decode_props, _encode_props, _select_label
 from graphrag_core.models import (
     ProvenanceTrail,
     GraphNode,
@@ -111,7 +111,7 @@ class Neo4jGraphStore:
             if record is None:
                 return None
             props = dict(record["n"])
-            label = [l for l in record["labels"] if l != "Chunk"][0] if record["labels"] else "Unknown"
+            label = _select_label(record["labels"] or [])
             node_id_val = props.pop("id", node_id)
             props.pop("_import_run_id", None)
             props.pop("_updated_at", None)
@@ -132,8 +132,7 @@ class Neo4jGraphStore:
 
             chain: list[ProvenanceStep] = []
             if record and record["n"]:
-                labels = [l for l in record["node_labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["node_labels"] or [])
                 chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": label}))
                 for chunk_id in record["chunk_ids"]:
                     if chunk_id:
@@ -170,8 +169,7 @@ class Neo4jGraphStore:
             nodes = []
             async for record in result:
                 props = dict(record["m"])
-                labels = [l for l in record["labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["labels"] or [])
                 nid = props.pop("id", "")
                 props.pop("_import_run_id", None)
                 props.pop("_updated_at", None)
@@ -206,8 +204,7 @@ class Neo4jGraphStore:
             nodes = []
             async for record in result:
                 props = dict(record["n"])
-                labels = [l for l in record["labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["labels"] or [])
                 node_id = props.pop("id", "")
                 props.pop("_import_run_id", None)
                 props.pop("_updated_at", None)

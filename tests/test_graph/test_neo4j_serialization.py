@@ -11,7 +11,25 @@ from graphrag_core.graph._serialization import (
     _JSON_MARKER,
     _decode_props,
     _encode_props,
+    _select_label,
 )
+
+
+class TestSelectLabel:
+    def test_domain_label_plus_chunk_returns_domain(self):
+        assert _select_label(["Claim", "Chunk"]) == "Claim"
+
+    def test_chunk_only_returns_chunk(self):
+        assert _select_label(["Chunk"]) == "Chunk"
+
+    def test_empty_list_returns_unknown(self):
+        assert _select_label([]) == "Unknown"
+
+    def test_single_non_chunk_label(self):
+        assert _select_label(["Claim"]) == "Claim"
+
+    def test_chunk_first_entity_second_returns_entity(self):
+        assert _select_label(["Chunk", "Entity"]) == "Entity"
 
 
 class TestEncodeProps:

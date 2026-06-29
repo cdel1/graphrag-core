@@ -56,6 +56,23 @@ def _encode_props(props: dict) -> dict:
     return result
 
 
+def _select_label(labels: list[str]) -> str:
+    """Select the most meaningful label from a Neo4j label list.
+
+    Prefers the first non-``Chunk`` label (a node may carry both a domain label
+    and the ``Chunk`` substrate label).  Falls back to ``"Chunk"`` when that is
+    the only label present, and to ``"Unknown"`` when the list is empty.
+
+    Args:
+        labels: The list of Neo4j labels returned by ``labels(n)``.
+
+    Returns:
+        A single label string — never raises ``IndexError``.
+    """
+    non_chunk = [l for l in labels if l != "Chunk"]
+    return non_chunk[0] if non_chunk else (labels[0] if labels else "Unknown")
+
+
 def _decode_props(props: dict) -> dict:
     """Restore property values that were encoded by ``_encode_props``.
 
