@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-06-29
+
+Backend-parity and robustness fixes surfaced by running an engine stress test against a real Neo4j backend with a live LLM — none were visible to the in-memory test suite.
+
+### Added
+
+- **`GraphStore` property-value round-trip contract** — node/relationship `properties` now accept arbitrary JSON-serializable values, including **nested** structures (dicts, lists of dicts), with read matching write across all backends. `Neo4jGraphStore` transparently serializes non-primitive values to a sentinel-marked JSON string on write and decodes on read (Neo4j natively rejects nested property values). Documented in `graph/INTERFACE.md`.
+
+### Fixed
+
+- `Neo4jGraphStore.merge_node`/`merge_relationship` no longer raise `CypherTypeError` on nested-map property values (e.g. per-property attestation metadata).
+- `Neo4jGraphStore.get_node` no longer raises `IndexError` on a node whose only label is `Chunk`; label selection now falls back to `Chunk` (Chunk-only) or `Unknown` (label-less) via the shared `_select_label` helper, applied across `get_node`/`get_provenance`/`get_related`/`list_nodes`.
+- `ChunkExtractionResult.nodes` and `.relationships` now default to empty lists — an LLM omitting the empty `relationships` key in its tool-use output previously raised a required-field `ValidationError` that crashed extraction non-deterministically.
+
+### Compatibility
+
+Backward-compatible. No public Protocol change. Pre-existing all-primitive Neo4j data is unaffected (no sentinel marker present); the `ChunkExtractionResult` required→default relaxation does not break existing callers.
+
 ## [0.14.0] — 2026-06-22
 
 ### BREAKING
