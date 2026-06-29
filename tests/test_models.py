@@ -287,6 +287,32 @@ class TestChunkExtractionResult:
         assert result.nodes == []
         assert result.relationships == []
 
+    def test_model_validate_nodes_only_omits_relationships(self):
+        """LLM returns only 'nodes' key — relationships must default to []."""
+        result = ChunkExtractionResult.model_validate({"nodes": []})
+        assert result.nodes == []
+        assert result.relationships == []
+
+    def test_model_validate_empty_dict_defaults_both_fields(self):
+        """LLM returns {} — both fields must default to []."""
+        result = ChunkExtractionResult.model_validate({})
+        assert result.nodes == []
+        assert result.relationships == []
+
+    def test_model_validate_populated_round_trip(self):
+        """Populated nodes and relationships survive model_validate round-trip."""
+        payload = {
+            "nodes": [{"id": "n1", "label": "Entity", "properties": {"name": "Acme"}}],
+            "relationships": [
+                {"source_id": "n1", "target_id": "n2", "type": "LINKED_TO", "properties": {}}
+            ],
+        }
+        result = ChunkExtractionResult.model_validate(payload)
+        assert len(result.nodes) == 1
+        assert result.nodes[0].id == "n1"
+        assert len(result.relationships) == 1
+        assert result.relationships[0].type == "LINKED_TO"
+
 
 class TestCommunityModel:
     def test_community_basic(self):

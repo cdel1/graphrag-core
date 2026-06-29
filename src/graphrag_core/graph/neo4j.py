@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from graphrag_core._cypher import MAX_DEPTH, validate_identifier
 from graphrag_core.exceptions import MissingEndpointError
+from graphrag_core.graph._serialization import _decode_props, _encode_props, _select_label
 from graphrag_core.models import (
     ProvenanceTrail,
     GraphNode,
@@ -56,7 +57,7 @@ class Neo4jGraphStore:
             result = await session.run(
                 query,
                 id=node.id,
-                props=node.properties,
+                props=_encode_props(node.properties),
                 run_id=import_run_id,
                 now=datetime.now(timezone.utc).isoformat(),
             )
@@ -77,7 +78,7 @@ class Neo4jGraphStore:
                 source_id=rel.source_id,
                 target_id=rel.target_id,
                 rel_type=rel.type,
-                props=rel.properties,
+                props=_encode_props(rel.properties),
                 run_id=import_run_id,
                 now=datetime.now(timezone.utc).isoformat(),
             )
@@ -110,11 +111,11 @@ class Neo4jGraphStore:
             if record is None:
                 return None
             props = dict(record["n"])
-            label = [l for l in record["labels"] if l != "Chunk"][0] if record["labels"] else "Unknown"
+            label = _select_label(record["labels"] or [])
             node_id_val = props.pop("id", node_id)
             props.pop("_import_run_id", None)
             props.pop("_updated_at", None)
-            return GraphNode(id=node_id_val, label=label, properties=props)
+            return GraphNode(id=node_id_val, label=label, properties=_decode_props(props))
 
     async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         query = (
@@ -131,8 +132,7 @@ class Neo4jGraphStore:
 
             chain: list[ProvenanceStep] = []
             if record and record["n"]:
-                labels = [l for l in record["node_labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["node_labels"] or [])
                 chain.append(ProvenanceStep(level="node", id=node_id, metadata={"label": label}))
                 for chunk_id in record["chunk_ids"]:
                     if chunk_id:
@@ -142,7 +142,7 @@ class Neo4jGraphStore:
                     if not doc.get("id") or doc["id"] in seen:
                         continue
                     chain.append(ProvenanceStep(level="document", id=doc["id"],
-                                                metadata=doc["props"]))
+                                                metadata=_decode_props(doc["props"])))
                     seen.add(doc["id"])
 
             return ProvenanceTrail(node_id=node_id, provenance_chain=chain)
@@ -169,12 +169,11 @@ class Neo4jGraphStore:
             nodes = []
             async for record in result:
                 props = dict(record["m"])
-                labels = [l for l in record["labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["labels"] or [])
                 nid = props.pop("id", "")
                 props.pop("_import_run_id", None)
                 props.pop("_updated_at", None)
-                nodes.append(GraphNode(id=nid, label=label, properties=props))
+                nodes.append(GraphNode(id=nid, label=label, properties=_decode_props(props)))
             return nodes
 
     async def apply_schema(self, schema: OntologySchema) -> None:
@@ -205,12 +204,11 @@ class Neo4jGraphStore:
             nodes = []
             async for record in result:
                 props = dict(record["n"])
-                labels = [l for l in record["labels"] if l != "Chunk"]
-                label = labels[0] if labels else "Unknown"
+                label = _select_label(record["labels"] or [])
                 node_id = props.pop("id", "")
                 props.pop("_import_run_id", None)
                 props.pop("_updated_at", None)
-                nodes.append(GraphNode(id=node_id, label=label, properties=props))
+                nodes.append(GraphNode(id=node_id, label=label, properties=_decode_props(props)))
             return nodes
 
     async def count_relationships(self) -> int:
@@ -234,10 +232,10 @@ class Neo4jGraphStore:
                 source_id=rec["source_id"],
                 target_id=rec["target_id"],
                 type=rec["rel_type"],
-                properties={
+                properties=_decode_props({
                     k: v for k, v in (rec["props"] or {}).items()
                     if not k.startswith("_")
-                },
+                }),
             )
             for rec in records
         ]
