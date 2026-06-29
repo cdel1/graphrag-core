@@ -213,3 +213,31 @@ class TestNeo4jProvenanceEdgeDirection:
             )
             rec = await result.single()
         assert rec["c"] == 1
+
+
+class TestNeo4jNestedPropertyRoundTrip:
+    """Verify that nested-map properties survive a write → read round-trip."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_nested_dict_property_round_trips(self, store):
+        """A node with a dict-valued property reads back equal to what was written."""
+        props = {"meta": {"source": "doc-1", "confidence": 0.9}}
+        node = GraphNode(id="rt-1", label="Entity", properties=props)
+        await store.merge_node(node, import_run_id="run-1")
+
+        retrieved = await store.get_node("rt-1")
+        assert retrieved is not None
+        assert retrieved.properties == props
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_attestation_shape_round_trips(self, store):
+        """The per-property attestation shape (list-of-dicts) round-trips exactly."""
+        props = {"name": [{"value": "Zone A", "run_id": "run-1"}]}
+        node = GraphNode(id="rt-2", label="Entity", properties=props)
+        await store.merge_node(node, import_run_id="run-1")
+
+        retrieved = await store.get_node("rt-2")
+        assert retrieved is not None
+        assert retrieved.properties == props
