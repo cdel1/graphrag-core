@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from graphrag_core.graph._serialization import (
     _JSON_MARKER,
     _decode_props,
@@ -68,6 +66,11 @@ class TestDecodeProps:
     def test_empty_dict(self):
         assert _decode_props({}) == {}
 
+    def test_invalid_json_after_marker_passes_through(self):
+        """A string that starts with the marker but is not valid JSON must not raise."""
+        bad = _JSON_MARKER + "not valid json"
+        assert _decode_props({"x": bad}) == {"x": bad}
+
 
 class TestRoundTrip:
     def test_all_primitive_props(self):
@@ -94,6 +97,10 @@ class TestRoundTrip:
 
     def test_empty_dict(self):
         assert _decode_props(_encode_props({})) == {}
+
+    def test_empty_dict_as_value(self):
+        """An empty dict value must round-trip without loss."""
+        assert _decode_props(_encode_props({"meta": {}})) == {"meta": {}}
 
     def test_mixed_props(self):
         """Mix of primitive, list-of-primitives, and nested — all round-trip."""

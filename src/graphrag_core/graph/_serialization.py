@@ -72,7 +72,10 @@ def _decode_props(props: dict) -> dict:
     result: dict = {}
     for key, value in props.items():
         if isinstance(value, str) and value.startswith(_JSON_MARKER):
-            result[key] = json.loads(value[len(_JSON_MARKER):])
+            try:
+                result[key] = json.loads(value[len(_JSON_MARKER):])
+            except json.JSONDecodeError:
+                result[key] = value
         else:
             result[key] = value
     return result
