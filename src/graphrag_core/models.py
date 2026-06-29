@@ -121,9 +121,15 @@ class ExtractionResult(BaseModel):
 
 
 class ChunkExtractionResult(BaseModel):
-    """LLM extraction output for a single chunk (no provenance — engine adds that)."""
-    nodes: list[ExtractedNode]
-    relationships: list[ExtractedRelationship]
+    """LLM extraction output for a single chunk (no provenance — engine adds that).
+
+    Both fields default to an empty list so that LLM tool-use responses that
+    omit the ``nodes`` or ``relationships`` key (a common LLM behaviour when a
+    chunk yields no entities of one type) still validate successfully.
+    """
+
+    nodes: list[ExtractedNode] = Field(default_factory=list)
+    relationships: list[ExtractedRelationship] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

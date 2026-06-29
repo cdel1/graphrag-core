@@ -69,7 +69,7 @@ def _select_label(labels: list[str]) -> str:
     Returns:
         A single label string — never raises ``IndexError``.
     """
-    non_chunk = [l for l in labels if l != "Chunk"]
+    non_chunk = [lbl for lbl in labels if lbl != "Chunk"]
     return non_chunk[0] if non_chunk else (labels[0] if labels else "Unknown")
 
 
