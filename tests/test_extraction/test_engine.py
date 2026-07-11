@@ -270,6 +270,82 @@ class TestExtractionEngineMultiChunk:
         assert {p.node_id for p in chunk_1_provenance} == {"person-bob", "company-globex"}
 
 
+class TestExtractionEngineMalformedChunk:
+    @pytest.mark.asyncio
+    async def test_malformed_chunk_is_skipped_and_recorded(self):
+        """A chunk whose LLM response fails schema validation must not abort
+        the whole extraction run; it contributes nothing and is counted."""
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        chunks = [
+            Chunk(id="chunk-0", text="Alice works at Acme.", position=0),
+            Chunk(id="chunk-1", text="Bob works at Globex.", position=1),
+            Chunk(id="chunk-2", text="Carol works at Initech.", position=2),
+        ]
+
+        response_0 = json.dumps({
+            "nodes": [
+                {"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}},
+                {"id": "company-acme", "label": "Company", "properties": {"name": "Acme"}},
+            ],
+            "relationships": [
+                {"source_id": "person-alice", "target_id": "company-acme", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+        # Simulates truncated structured output: "relationships" cut off mid-value,
+        # producing a type that fails schema validation instead of a parseable list.
+        response_1 = json.dumps({
+            "nodes": [
+                {"id": "person-bob", "label": "Person", "properties": {"name": "Bob"}},
+            ],
+            "relationships": "trunc",
+        })
+        response_2 = json.dumps({
+            "nodes": [
+                {"id": "person-carol", "label": "Person", "properties": {"name": "Carol"}},
+                {"id": "company-initech", "label": "Company", "properties": {"name": "Initech"}},
+            ],
+            "relationships": [
+                {"source_id": "person-carol", "target_id": "company-initech", "type": "WORKS_AT", "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(
+            llm_client=FakeLLMClient(responses=[response_0, response_1, response_2])
+        )
+        result = await engine.extract(chunks=chunks, schema=_schema(), import_run=_import_run())
+
+        # chunk-1 contributes nothing; chunk-0 and chunk-2 extract normally.
+        assert len(result.nodes) == 4
+        assert len(result.relationships) == 2
+        assert len(result.provenance) == 4
+        chunk_ids = {p.chunk_id for p in result.provenance}
+        assert chunk_ids == {"chunk-0", "chunk-2"}
+
+        assert result.quality_signals is not None
+        assert result.quality_signals["malformed_chunk_extractions"] == 1
+
+    @pytest.mark.asyncio
+    async def test_non_validation_error_still_propagates(self):
+        """Only schema-validation failures are swallowed per chunk; any other
+        exception (e.g. a transport/API failure) must fail the run visibly."""
+        from graphrag_core.extraction.engine import LLMExtractionEngine
+
+        class RaisingLLMClient:
+            async def complete(self, messages, system=None, temperature=0.0, max_tokens=4096):
+                return ""
+
+            async def complete_json(self, messages, schema, system=None, temperature=0.0, max_tokens=4096):
+                raise RuntimeError("upstream request failed")
+
+        chunks = [Chunk(id="chunk-0", text="Alice works at Acme.", position=0)]
+
+        engine = LLMExtractionEngine(llm_client=RaisingLLMClient())
+
+        with pytest.raises(RuntimeError, match="upstream request failed"):
+            await engine.extract(chunks=chunks, schema=_schema(), import_run=_import_run())
+
+
 class TestExtractionEngineProtocol:
     def test_satisfies_extraction_engine_protocol(self):
         from graphrag_core.extraction.engine import LLMExtractionEngine
