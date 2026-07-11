@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+
+import pydantic
+
 from graphrag_core.interfaces import ExtractionPromptBuilder, LLMClient
 from graphrag_core.models import (
     ChunkExtractionResult,
@@ -13,6 +17,8 @@ from graphrag_core.models import (
     OntologySchema,
     ProvenanceLink,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def validate_extraction(
@@ -113,11 +119,21 @@ class LLMExtractionEngine:
         all_nodes: list[ExtractedNode] = []
         all_rels: list[ExtractedRelationship] = []
         all_provenance: list[ProvenanceLink] = []
+        malformed_chunk_extractions = 0
 
         system_prompt = self._prompt_builder.build_system_prompt(schema)
 
         for chunk in chunks:
-            nodes, rels = await self._extract_chunk(chunk, system_prompt)
+            try:
+                nodes, rels = await self._extract_chunk(chunk, system_prompt)
+            except pydantic.ValidationError:
+                logger.warning(
+                    "Skipping chunk %s: LLM response failed schema validation",
+                    chunk.id,
+                )
+                malformed_chunk_extractions += 1
+                continue
+
             nodes, rels = self._validate(nodes, rels, schema)
 
             for node in nodes:
@@ -128,10 +144,17 @@ class LLMExtractionEngine:
             all_nodes.extend(nodes)
             all_rels.extend(rels)
 
+        quality_signals = (
+            {"malformed_chunk_extractions": malformed_chunk_extractions}
+            if malformed_chunk_extractions
+            else None
+        )
+
         return ExtractionResult(
             nodes=all_nodes,
             relationships=all_rels,
             provenance=all_provenance,
+            quality_signals=quality_signals,
         )
 
     async def _extract_chunk(
