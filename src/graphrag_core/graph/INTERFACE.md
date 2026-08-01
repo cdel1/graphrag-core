@@ -35,7 +35,7 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 ### Contracts
 
 - **`merge_node`** — Idempotent on `node.id`. If a node with this ID exists, properties are merged (last-write-wins on conflicts). Returns the canonical node ID (may differ if the implementation canonicalizes IDs). The `import_run_id` is recorded as provenance regardless of whether the node was newly created or merged.
-- **`merge_relationship`** — Idempotent on `(source_id, target_id, type)`. If an edge with the same triple exists, properties are merged. `import_run_id` is recorded.
+- **`merge_relationship`** — **Strict upsert (ADR-0034).** Idempotent on `(source_id, target_id, type)`: re-merging the same triple updates properties in place and edges never duplicate (a backend that duplicates on re-merge is non-conformant). If the source or target node does not exist, it raises `MissingEndpointError` — it never silently creates a stub node (stubs have no chunk/document provenance and break the audit trail) nor returns `None` (which just relocates the failure downstream). Both bundled backends enforce this. `import_run_id` is recorded.
 - **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the lineage edge `(:GraphNode)-[:FROM_CHUNK]->(:Chunk)`.
 - **`get_provenance`** — Must return the full provenance chain reaching from the node through its chunks to their source documents. Emits ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. **The `level="node"` step is always first. Ordering of `chunk` and `document` steps within the chain is implementation-defined and varies by backend; consumers must filter by `step.level`, not by position.** The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns a `ProvenanceTrail` with `provenance_chain=[]`, not `None`.
 - **`get_related`** — `depth=1` returns immediate neighbors. `depth=2` includes neighbors-of-neighbors. The caller pays for traversal cost — depth >3 is a code smell.
@@ -67,6 +67,7 @@ Reading-order adjacency between chunks:
 ### Error modes
 
 - All methods may raise `ConnectionError` (transient) or `RuntimeError` (logic bug in caller).
+- `merge_relationship` raises `MissingEndpointError` (a subclass of `GraphStoreError`) when either endpoint node is absent — strict-merge per ADR-0034. It is meant to propagate: callers that build both endpoints immediately beforehand (e.g. the L1 `IngestionPipeline`'s `CHUNKED_FROM` edge) treat a raise here as a pipeline bug and must fail loud. Catch-log-count-continue for dirty extraction output belongs at the L2 boundary, not inside this Protocol.
 - `apply_schema` raises `SchemaError` if the underlying store cannot enforce the constraints.
 - `validate_schema` *never raises* — returns `list[SchemaViolation]` (empty if clean).
 - `get_node` returns `None` for a missing ID — does not raise.
@@ -89,6 +90,35 @@ Reading-order adjacency between chunks:
 
 - `Neo4jGraphStore` — Cypher-based; uses `MERGE` semantics for idempotency; vector + fulltext indexes per `apply_schema`.
 - `MemoryGraphStore` — dict-of-dicts; tests only; no schema enforcement.
+
+### Contract conformance suite
+
+Introduced in **v0.10.0** (ADR-0034). Any `GraphStore` implementer proves conformance by subclassing the in-core test suite:
+
+```python
+from graphrag_core.testing.contracts.graph_store import GraphStoreContractTests
+
+class TestMyStore(GraphStoreContractTests):
+    persists_across_instances = True   # opt in to the lifecycle round-trip
+    def store_factory(self): ...
+```
+
+`pytest` is an import-time requirement of `graphrag_core.testing.contracts` **only** — never a runtime dependency of graphrag-core, and no extras group is created. The suite that ships with vX.Y asserts vX.Y's Protocol.
+
+**Mandatory (every backend):**
+
+1. **`clear()` completeness** — after `clear()`, every read reflects the empty state.
+2. **Strict-merge endpoints** — `merge_relationship` with a missing endpoint raises `MissingEndpointError`.
+3. **Idempotent merge** — node and relationship upsert (call twice, count = 1).
+4. **Audit-trail-reaches-document** — `get_provenance` yields a `level="document"` step (ADR-0001).
+5. **`flush()` semantics** — a documented no-op is conformant (ADR-0033).
+
+**Capability-gated (opt in via a subclass class-attribute):**
+
+- `persists_across_instances = True` → lifecycle + schema round-trip (flush, discard the instance, re-instantiate, all state survives — the persistence-boundary bug class).
+- `requires_concurrency_safety = True` (default `False`) → interleaved-writers test. Default-off keeps in-process backends viable (ADR-0024).
+
+The bundled `Neo4jGraphStore` and `MemoryGraphStore` are the suite's first subscribers. Doctrine origin: ADR-0034 (strict merge + in-core suite), building on ADR-0033 (`flush()` boundary) and ADR-0006b (contract-suite intent).
 
 ---
 
