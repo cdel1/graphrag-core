@@ -90,7 +90,6 @@ wheels = [
 
 [[package]]
 name = "graphrag-core"
-version = "0.15.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -123,16 +122,18 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'all'", specifier = ">=0.40" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40" },
-    { name = "graphrag-core", extras = ["anthropic", "neo4j", "openai"], marker = "extra == 'all'" },
+    { name = "neo4j", marker = "extra == 'all'", specifier = ">=5.0" },
     { name = "neo4j", marker = "extra == 'neo4j'", specifier = ">=5.0" },
+    { name = "openai", marker = "extra == 'all'", specifier = ">=1.0" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pypdf", specifier = ">=4.0" },
     { name = "python-docx", specifier = ">=1.0" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["anthropic", "neo4j", "openai", "all"]
+provides-extras = ["all", "anthropic", "neo4j", "openai"]
 
 [package.metadata.requires-dev]
 dev = [
