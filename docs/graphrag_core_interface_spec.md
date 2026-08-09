@@ -4,7 +4,7 @@
 **License:** MIT
 **Status:** Draft — revised to reflect BB7 4-of-8 split and pending push-down (audit decision E1)
 
-> A domain-agnostic framework for building governed, auditable Knowledge Graphs from documents using LLM-powered extraction, provenance-native storage, and multi-agent orchestration.
+> A domain-agnostic framework for building governed, auditable Knowledge Graphs from documents using LLM-powered extraction, provenance-native storage, and an agent-callable tool contract (consumed by external agents over MCP).
 
 ---
 
@@ -215,52 +215,11 @@ class SearchEngine(Protocol):
 
 ---
 
-## Building Block 5: Governed Curation Pipeline
+## Building Block 5: Governed Curation — retired (merged into BB3)
 
-Three-layer quality assurance: deterministic checks → LLM suggestions → human approval.
-
-### Interface
-
-```python
-from graphrag_core.curation import (
-    CurationPipeline, DetectionLayer, LLMCurationLayer, ApprovalGateway
-)
-
-class CurationIssue(BaseModel):
-    id: str
-    issue_type: str          # "duplicate", "orphan", "schema_violation", "merge_candidate"
-    severity: str            # "info", "warning", "error"
-    affected_nodes: list[str]
-    suggested_action: str
-    auto_fixable: bool
-    source_layer: str        # "deterministic", "llm"
-
-class DetectionLayer(Protocol):
-    """Layer 1: Deterministic, zero LLM cost."""
-    async def detect(self, import_run_id: str) -> list[CurationIssue]: ...
-
-class LLMCurationLayer(Protocol):
-    """Layer 2: LLM-based suggestions (entity resolution, relevance)."""
-    async def curate(self, issues: list[CurationIssue]) -> list[CurationIssue]: ...
-
-class ApprovalGateway(Protocol):
-    """Layer 3: Human approval for high-impact operations."""
-    async def submit_for_approval(self, issues: list[CurationIssue]) -> str: ...  # returns batch_id
-    async def get_approval_status(self, batch_id: str) -> ApprovalBatch: ...
-    async def apply_approved(self, batch_id: str) -> ApplyResult: ...
-
-class CurationPipeline:
-    """Orchestrates the 3-layer flow."""
-    def __init__(
-        self,
-        detection: DetectionLayer,
-        llm_curation: LLMCurationLayer,
-        approval: ApprovalGateway,
-        graph_store: GraphStore,
-    ): ...
-
-    async def run(self, import_run_id: str) -> CurationReport: ...
-```
+> **Retired.** The BB5 governed-curation *seat* was retired by [ADR-0039](https://github.com/cdel1/tessera/blob/main/docs/adr/0039-bb-taxonomy-realignment-pipeline-vs-infrastructure.md) (D3), and its L1 Python was removed by [ADR-0038](https://github.com/cdel1/tessera/blob/main/docs/adr/0038-curation-substrate-l3-contract-only.md) (shipped v0.12.0). The three-layer QA pipeline — the `DetectionLayer` / `LLMCurationLayer` / `ApprovalGateway` Protocols, the `DeterministicDetectionLayer` implementation, the `CurationPipeline` orchestrator, and the `CurationIssue` / `CurationReport` / `ApprovalBatch` / `ApplyResult` models — had zero L2 consumers and was deleted. Graph-quality QA is play-shaped and lives at L2.
+>
+> What survives is the **Layer-3 attestation contract**, now owned by BB3 (Knowledge Graph): *Layer 3 is a contract, not a Protocol shape.* Every L2 surface that mutates the graph at Tier 3 must emit a promotion event recording attestor kind (`human` | `agent`), attestor id, rationale, supporting excerpts, timestamp, and an immutable audit record of the mutation. No L1 Python enforces it. The contract text lives in `graph/INTERFACE.md` § *Layer 3 — the attestation contract*.
 
 ---
 
@@ -346,41 +305,9 @@ Domain-specific tools (e.g. `find_divergent_topics`, `generate_report_section`, 
 
 ---
 
-## Building Block 8: Multi-Agent Orchestration & Report Generation
+## Building Block 8: Multi-Agent Orchestration & Report Generation — retired
 
-Coordinates agents in a workflow and renders output documents.
-
-### Interface
-
-```python
-from graphrag_core.agents import Orchestrator, Agent, AgentContext
-from graphrag_core.report import ReportRenderer
-
-class Agent(Protocol):
-    """A single agent with a defined role."""
-    name: str
-    async def execute(self, context: AgentContext) -> AgentResult: ...
-
-class Orchestrator(Protocol):
-    """Coordinates multi-agent workflows."""
-    async def run_workflow(
-        self, workflow_id: str, agents: list[Agent], context: AgentContext
-    ) -> WorkflowResult: ...
-
-class ReportRenderer(Protocol):
-    """Renders structured report data into output format."""
-    async def render(
-        self, report_data: ReportData, template: str, config: RenderConfig
-    ) -> bytes: ...  # returns file bytes (docx, pdf, html)
-
-class AgentContext(BaseModel):
-    """Shared context passed between agents."""
-    graph_store: GraphStore
-    tool_library: ToolLibrary
-    search_engine: SearchEngine
-    quarter: str
-    workflow_state: dict[str, Any] = {}
-```
+> **Retired.** The BB8 seat was retired by [ADR-0039](https://github.com/cdel1/tessera/blob/main/docs/adr/0039-bb-taxonomy-realignment-pipeline-vs-infrastructure.md) and its L1 Python removed in v0.13.0. The `Agent` / `Orchestrator` Protocols, `SequentialOrchestrator`, `AgentContext`, the `ReportRenderer` Protocol, and the `AgentResult` / `WorkflowResult` / `ReportData` / `RenderConfig` models are gone — they had no production consumers and were superseded by two doctrines: the TfT human-orchestrator model, and the agentic-substrate model in which **agents are external** (Claude Code, MCP clients, custom harnesses) and drive the framework by consuming its `ToolLibrary` (BB7) over MCP. graphrag-core ships the tool contract, not an agent runtime; report rendering is an L2 concern. See [`2026-05-15-agentic-substrate-design.md`](https://github.com/cdel1/tessera/blob/main/docs/specs/2026-05-15-agentic-substrate-design.md) §4.1.
 
 ---
 
@@ -411,10 +338,10 @@ tool_library.register(Tool(
     handler=find_divergent_topics_handler
 ))
 
-# 3. Define domain-specific agents
-class PerspectiveAgent(Agent):
-    name = "perspective_agent"
-    async def execute(self, context: AgentContext) -> AgentResult: ...
+# 3. Expose the tools to external agents over MCP
+#    graphrag-core ships no agent runtime — external agents (Claude Code, MCP
+#    clients, custom harnesses) drive the pipeline by calling the ToolLibrary.
+#    See 2026-05-15-agentic-substrate-design.md §4.1.
 ```
 
 ### Swapping a Backend
@@ -451,16 +378,16 @@ graphrag-core ships with production-ready defaults. **Honest current state (2026
 | `ExtractionPostProcessor` (Protocol only) | n/a | `graphrag-core` | Protocol shipped; default impl is domain concern |
 | `SearchEngine` | `Neo4jHybridSearch` (+ `MemorySearch` for tests) | `graphrag-core` | Shipped |
 | `EmbeddingModel` (Protocol only) | n/a (named `NomicEmbedding` in v0.1.0 spec; not yet implemented) | — | **Protocol only** |
-| `DetectionLayer` | `GDSDetectionLayer` named in v0.1.0 spec; **not yet implemented** — only Protocol ships | `graphrag-core` | **Protocol only** |
-| `LLMCurationLayer` (Protocol only) | n/a | `graphrag-core` | Protocol only |
-| `ApprovalGateway` (Protocol only) | named `CLIApprovalGateway` in v0.1.0 spec; **not yet implemented** | — | **Protocol only** |
+| ~~`DetectionLayer`~~ | `GDSDetectionLayer` was named in v0.1.0 spec, never implemented | — | **Removed** (ADR-0038, v0.12.0) |
+| ~~`LLMCurationLayer`~~ | n/a | — | **Removed** (ADR-0038, v0.12.0) |
+| ~~`ApprovalGateway`~~ | `CLIApprovalGateway` was named in v0.1.0 spec, never implemented | — | **Removed** (ADR-0038, v0.12.0) |
 | `EntityRegistry` | `MemoryEntityRegistry` | `graphrag-core` | Shipped (in-memory; no Neo4j-backed registry yet) |
 | `ToolLibrary` | `ToolLibrary` + 4 core tools (see above) | `graphrag-core` | Shipped (partial — 4 of 8 tools) |
-| `Orchestrator` | `SequentialOrchestrator` (LangGraph variant promised, not yet implemented) | `graphrag-core` | Sequential shipped |
-| `ReportRenderer` (Protocol only) | named `DocxRenderer` in v0.1.0 spec; **not yet implemented** | — | **Protocol only** |
+| ~~`Orchestrator`~~ | `SequentialOrchestrator` (+ `Agent`, `AgentContext`) | — | **Removed** (ADR-0039, v0.13.0) |
+| ~~`ReportRenderer`~~ | `DocxRenderer` was named in v0.1.0 spec, never implemented | — | **Removed** (ADR-0039, v0.13.0) |
 | `CommunityDetector` (Protocol only) | implemented in Lacuna (`LeidenCommunityDetector` via graspologic) | Lacuna L2 | Protocol shipped; default impl in Lacuna |
 
-**v0.2.0 spec correction:** v0.1.0 listed default implementations that were aspirational. v0.2.0 spec separates "Protocol shipped" from "default impl shipped." Several Protocols (`EmbeddingModel`, `DetectionLayer`, `ApprovalGateway`, `ReportRenderer`) ship as interfaces but have no default implementation in graphrag-core yet — consumers must supply their own or implement against the Protocol. Default implementations land as needed by Lacuna pilot deployment and Phase 6 BB7 expansion.
+**v0.2.0 spec correction:** v0.1.0 listed default implementations that were aspirational. v0.2.0 spec separates "Protocol shipped" from "default impl shipped." `EmbeddingModel` ships as an interface with no default implementation in graphrag-core yet — consumers must supply their own or implement against the Protocol. (`DetectionLayer`, `ApprovalGateway`, and `ReportRenderer`, also listed here originally, were later removed entirely per ADR-0038 / ADR-0039.)
 
 ---
 
@@ -490,30 +417,17 @@ graphrag-core/
 │       ├── search/
 │       │   ├── __init__.py
 │       │   └── hybrid.py          # Neo4jHybridSearch
-│       ├── curation/
-│       │   ├── __init__.py
-│       │   ├── pipeline.py        # CurationPipeline
-│       │   ├── detection.py       # GDSDetectionLayer
-│       │   └── approval.py        # ApprovalGateway Protocol
 │       ├── registry/
 │       │   ├── __init__.py
 │       │   └── known_entities.py  # EntityRegistry
-│       ├── tools/
-│       │   ├── __init__.py
-│       │   ├── library.py         # ToolLibrary
-│       │   └── core_tools.py      # 8 core tools
-│       ├── agents/
-│       │   ├── __init__.py
-│       │   ├── orchestrator.py    # Orchestrator Protocol
-│       │   └── langgraph.py       # LangGraphOrchestrator
-│       └── report/
+│       └── tools/
 │           ├── __init__.py
-│           └── renderer.py        # ReportRenderer Protocol
+│           ├── library.py         # ToolLibrary
+│           └── core_tools.py      # 8 core tools
 ├── tests/
 │   ├── test_ingestion.py
 │   ├── test_extraction.py
 │   ├── test_graph.py
-│   ├── test_curation.py
 │   ├── test_tools.py
 │   └── conftest.py
 ├── pyproject.toml

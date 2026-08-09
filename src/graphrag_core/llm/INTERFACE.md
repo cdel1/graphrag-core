@@ -9,7 +9,7 @@
 
 ## `LLMClient`
 
-Provider-agnostic interface to a chat-completion-style LLM. Used by `LLMExtractionEngine`, `LLMCurationLayer`, and domain layers implementing the `GenerationLLM` Protocol for report writing.
+Provider-agnostic interface to a chat-completion-style LLM. Used by `LLMExtractionEngine` and domain layers implementing the `GenerationLLM` Protocol for report writing.
 
 ### Interface
 
