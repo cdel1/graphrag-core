@@ -21,13 +21,18 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
+      - name: Verify uv.lock is in sync with pyproject
+        run: uv lock --check
+
       - name: Run unit tests
         run: uv run pytest tests/ -x -q
 
       - name: Boundary check — no domain leakage
         run: |
           FORBIDDEN="MonitoringTopic|Perspective|SubjectArea|Interview|Dalux|CapturePoint|InvestorAlert|SollIst"
-          if grep -rn -E "$FORBIDDEN" src/; then
+          # Scan code AND published docs. CLAUDE.md / CHANGELOG.md are intentionally
+          # excluded: they name these terms as policy (the forbidden list) and history.
+          if grep -rn -E "$FORBIDDEN" src/ docs/ README.md; then
             echo "DOMAIN LEAKAGE DETECTED in graphrag-core"
             exit 1
           else
