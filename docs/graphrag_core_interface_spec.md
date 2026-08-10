@@ -301,7 +301,7 @@ CORE_TOOLS_PENDING_PUSHDOWN = [
 
 The 8-tool framing was the v0.1.0 spec target. Current shipping state: 4 generic core tools in graphrag-core; 4 temporal tools in Lacuna pending push-down. The temporal tools are domain-agnostic (any Layer 2 consumer with period-tagged claims benefits) and pass the Push-Down Rule; the push-down is scheduled before the next graphrag-core PyPI release.
 
-Domain-specific tools (e.g. `find_divergent_topics`, `generate_report_section`, `generate_executive_summary`, `apply_lens`, scope-overlay tools) are registered by the Layer 2 application and stay in Lacuna.
+Domain-specific tools (e.g. a gap-finder over declared vs. observed state, report-section and summary generators, lens/scope filters) are registered by the Layer 2 application and stay in the consumer, not in graphrag-core.
 
 ---
 
@@ -321,21 +321,21 @@ graphrag-core is designed to be extended, not forked.
 from graphrag_core.extraction import OntologySchema
 from graphrag_core.tools import ToolLibrary
 
-# 1. Define your domain ontology
-construction_schema = OntologySchema(
+# 1. Define your domain ontology (example: a legal-compliance domain)
+compliance_schema = OntologySchema(
     node_types=[
-        NodeTypeDefinition(label="MonitoringTopic", properties=[...]),
-        NodeTypeDefinition(label="Perspective", properties=[...]),
+        NodeTypeDefinition(label="Obligation", properties=[...]),
+        NodeTypeDefinition(label="Control", properties=[...]),
     ],
     relationship_types=[...]
 )
 
 # 2. Register domain-specific tools
 tool_library.register(Tool(
-    name="find_divergent_topics",
-    description="Find topics with conflicting stakeholder perspectives",
+    name="find_unmet_obligations",
+    description="Find obligations with no satisfying control",
     parameters={...},
-    handler=find_divergent_topics_handler
+    handler=find_unmet_obligations_handler
 ))
 
 # 3. Expose the tools to external agents over MCP

@@ -1,6 +1,6 @@
 [project]
 name = "graphrag-core"
-version = "0.15.0"
+dynamic = ["version"]
 description = "Domain-agnostic Graph RAG framework for building governed, auditable Knowledge Graphs"
 license = "MIT"
 requires-python = ">=3.12"
@@ -34,6 +34,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/graphrag_core"]
+
+# Single source of truth for the version: src/graphrag_core/__init__.py (__version__).
+# pyproject reads it dynamically; scripts/bump-version.sh edits that one file and re-locks.
+[tool.hatch.version]
+path = "src/graphrag_core/__init__.py"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
