@@ -17,7 +17,7 @@ def _doc(texts: list[str], sha: str = "abc123def456") -> ParsedDocument:
         sections=[TextSection(heading=None, text=t) for t in texts],
         metadata=DocumentMetadata(
             title="", source="", doc_type="text/plain",
-            date=None, quarter=None, sha256=sha,
+            date=None, sha256=sha,
         ),
     )
 
@@ -81,7 +81,7 @@ class TestTokenChunker:
             sections=[TextSection(heading=None, text="word " * 3, page=5)],
             metadata=DocumentMetadata(
                 title="", source="", doc_type="text/plain",
-                date=None, quarter=None, sha256="abc123def456",
+                date=None, sha256="abc123def456",
             ),
         )
         config = ChunkConfig(max_tokens=10, overlap=0)

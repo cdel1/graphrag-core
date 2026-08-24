@@ -95,7 +95,7 @@ class DocumentMetadata(BaseModel):
     source: str
     doc_type: str        # pdf, xlsx, docx, email, transcript
     date: date | None
-    quarter: str | None  # e.g. "Q4/2025"
+    period: str | None   # canonical doc-time field, lexically-sortable (e.g. "2025-Q4")
     sha256: str
 
 class ImportRun(BaseModel):
