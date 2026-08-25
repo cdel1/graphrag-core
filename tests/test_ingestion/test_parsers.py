@@ -37,7 +37,7 @@ class TestTextParser:
         assert result.metadata.title == ""
         assert result.metadata.source == ""
         assert result.metadata.date is None
-        assert result.metadata.quarter is None
+        assert result.metadata.period is None
 
     @pytest.mark.asyncio
     async def test_parse_rejects_wrong_content_type(self, parser):

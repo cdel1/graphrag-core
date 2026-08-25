@@ -28,7 +28,7 @@ async def test_ingest_writes_document_node(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="My Doc", source="src1", doc_type="report",
-        date=None, quarter=None, period="2026-Q2", sha256="sha-1",
+        date=None, period="2026-Q2", sha256="sha-1",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata))
 
@@ -52,7 +52,7 @@ async def test_ingest_writes_from_document_edges(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="t", source="s", doc_type="d",
-        date=None, quarter=None, period="2026-Q2", sha256="sha-2",
+        date=None, period="2026-Q2", sha256="sha-2",
     )
     # Long enough to produce multiple chunks
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 200))
@@ -75,7 +75,7 @@ async def test_ingest_idempotent_on_same_sha(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="t", source="s", doc_type="d",
-        date=None, quarter=None, period="P", sha256="same-sha",
+        date=None, period="P", sha256="same-sha",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
 
@@ -95,7 +95,7 @@ async def test_ingest_without_graph_store_returns_chunks_only(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="t", source="s", doc_type="d",
-        date=None, quarter=None, period=None, sha256="x",
+        date=None, period=None, sha256="x",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
 
@@ -105,59 +105,13 @@ async def test_ingest_without_graph_store_returns_chunks_only(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_quarter_falls_back_to_period(monkeypatch):
-    """When period is None and quarter is set, BB1 copies quarter into period
-    on the Document node properties (Task 6 — backwards-compat transition)."""
-    parser = TextParser()
-    chunker = TokenChunker()
-    metadata = DocumentMetadata(
-        title="t", source="s", doc_type="d",
-        date=None, quarter="2026-Q2", period=None, sha256="qfall-1",
-    )
-    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
-
-    pipeline = IngestionPipeline(parser, chunker)
-    store = InMemoryGraphStore()
-    await pipeline.ingest(
-        b"x", "text/plain", graph_store=store, import_run_id="r1",
-    )
-
-    docs = [n for n in await store.list_nodes() if n.label == "Document"]
-    assert len(docs) == 1
-    assert docs[0].properties.get("period") == "2026-Q2"
-
-
-@pytest.mark.asyncio
-async def test_quarter_is_stripped_from_persisted_document(monkeypatch):
-    """quarter is a deprecated field — it must not land on the :Document node."""
-    parser = TextParser()
-    chunker = TokenChunker()
-    metadata = DocumentMetadata(
-        title="t", source="s", doc_type="d",
-        date=None, quarter="2026-Q2", period=None, sha256="strip-test",
-    )
-    monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
-
-    pipeline = IngestionPipeline(parser, chunker)
-    store = InMemoryGraphStore()
-    await pipeline.ingest(b"x", "text/plain", graph_store=store, import_run_id="r1")
-
-    docs = [n for n in await store.list_nodes() if n.label == "Document"]
-    assert len(docs) == 1
-    # quarter must not appear on the Document node properties
-    assert "quarter" not in docs[0].properties
-    # period must still be populated from the fallback
-    assert docs[0].properties["period"] == "2026-Q2"
-
-
-@pytest.mark.asyncio
 async def test_ingest_raises_if_graph_store_without_import_run_id(monkeypatch):
     """Defensive: graph_store provided but import_run_id missing -> ValueError."""
     parser = TextParser()
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="t", source="s", doc_type="d",
-        date=None, quarter=None, period=None, sha256="x",
+        date=None, period=None, sha256="x",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="x"))
 
@@ -180,7 +134,7 @@ async def test_ingest_creates_chunk_nodes_before_from_document_edges(monkeypatch
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="t", source="s", doc_type="d",
-        date=None, quarter=None, period="2026-Q1", sha256="chunknode-1",
+        date=None, period="2026-Q1", sha256="chunknode-1",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 50))
 
@@ -236,7 +190,7 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="Neo4j Smoke", source="smoke", doc_type="report",
-        date=None, quarter=None, period="2026-Q1", sha256="neo4j-smoke",
+        date=None, period="2026-Q1", sha256="neo4j-smoke",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 50))
 
@@ -283,7 +237,7 @@ async def test_ingest_writes_next_chunk_adjacency(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="adj", source="s", doc_type="d",
-        date=None, quarter=None, period="2026-Q2", sha256="adj-1",
+        date=None, period="2026-Q2", sha256="adj-1",
     )
     # Long enough to produce multiple chunks
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="paragraph " * 200))
@@ -319,7 +273,7 @@ async def test_ingest_single_chunk_no_next_chunk_edges(monkeypatch):
     chunker = TokenChunker()
     metadata = DocumentMetadata(
         title="single", source="s", doc_type="d",
-        date=None, quarter=None, period="2026-Q2", sha256="single-1",
+        date=None, period="2026-Q2", sha256="single-1",
     )
     monkeypatch.setattr(parser, "parse", _make_fake_parse(metadata, text="short"))
 

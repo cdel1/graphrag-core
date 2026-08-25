@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### BREAKING
+
+- **`DocumentMetadata.quarter` removed** (deprecated since v0.6.0, originally slated for removal at v0.7.0; the canonical field is `period`). The ingest-time `quarter → period` fallback in `IngestionPipeline` is removed with it. Callers still passing `quarter` must migrate to `period`: the model now ignores the unknown `quarter` key, so a legacy `quarter` value no longer reaches the persisted `:Document` node's `period` property.
+
 ## [0.15.0] — 2026-06-29
 
 Backend-parity and robustness fixes surfaced by running an engine stress test against a real Neo4j backend with a live LLM — none were visible to the in-memory test suite.
