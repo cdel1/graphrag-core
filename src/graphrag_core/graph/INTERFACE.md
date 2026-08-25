@@ -36,7 +36,7 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 
 - **`merge_node`** — Idempotent on `node.id`. If a node with this ID exists, properties are merged (last-write-wins on conflicts). Returns the canonical node ID (may differ if the implementation canonicalizes IDs). The `import_run_id` is recorded as provenance regardless of whether the node was newly created or merged.
 - **`merge_relationship`** — **Strict upsert (ADR-0034).** Idempotent on `(source_id, target_id, type)`: re-merging the same triple updates properties in place and edges never duplicate (a backend that duplicates on re-merge is non-conformant). If the source or target node does not exist, it raises `MissingEndpointError` — it never silently creates a stub node (stubs have no chunk/document provenance and break the audit trail) nor returns `None` (which just relocates the failure downstream). Both bundled backends enforce this. `import_run_id` is recorded.
-- **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the lineage edge `(:GraphNode)-[:FROM_CHUNK]->(:Chunk)`.
+- **`record_provenance`** — Idempotent on `(node_id, chunk_id, import_run_id)`. Records the `node → chunk` lineage link (`FROM_CHUNK`). **Provenance is a lineage channel, not a relationship-surface edge (ADR-0055):** `get_provenance` is the only read path for recorded lineage — it is never visible through `list_relationships()`, never counted by `count_relationships()`, and never traversed by `get_related()`, in every backend. How a backend represents the lineage internally (a real edge, a side table, anything) is unspecified behind the seam.
 - **`get_provenance`** — Must return the full provenance chain reaching from the node through its chunks to their source documents. Emits ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. **The `level="node"` step is always first. Ordering of `chunk` and `document` steps within the chain is implementation-defined and varies by backend; consumers must filter by `step.level`, not by position.** The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns a `ProvenanceTrail` with `provenance_chain=[]`, not `None`.
 - **`get_related`** — `depth=1` returns immediate neighbors. `depth=2` includes neighbors-of-neighbors. The caller pays for traversal cost — depth >3 is a code smell.
 - **`list_nodes` / `list_relationships`** — May be expensive on large graphs. Used by Tier 2 computations (community detection, divergence detection). Implementations should stream or paginate if backing store supports it; current Protocol returns full list — callers must accept O(n) memory.
@@ -49,6 +49,8 @@ The full lexical chain is:
 ```
 (node)-[:FROM_CHUNK]->(:Chunk)-[:FROM_DOCUMENT]->(:Document)
 ```
+
+The `FROM_CHUNK` leg is the lineage channel written by `record_provenance` and read only via `get_provenance` (ADR-0055 — see the `record_provenance` contract above); `FROM_DOCUMENT` and `NEXT_CHUNK` are ordinary relationship-surface edges written through `merge_relationship`.
 
 Reading-order adjacency between chunks:
 
@@ -112,6 +114,7 @@ class TestMyStore(GraphStoreContractTests):
 3. **Idempotent merge** — node and relationship upsert (call twice, count = 1).
 4. **Audit-trail-reaches-document** — `get_provenance` yields a `level="document"` step (ADR-0001).
 5. **`flush()` semantics** — a documented no-op is conformant (ADR-0033).
+6. **Provenance is a lineage channel** — `record_provenance` changes neither `list_relationships()` nor `count_relationships()`, and `get_related()` does not reach the chunk; `get_provenance` returns the trail (ADR-0055).
 
 **Capability-gated (opt in via a subclass class-attribute):**
 
@@ -206,6 +209,7 @@ class MyGraphStore:
 - `get_provenance` returns the full chain for a node ingested via `IngestionPipeline`. The chain has at least one `level="document"` step; that step's `metadata` carries `period` (when set on the source document).
 - `get_provenance` emits exactly one `level="document"` step per unique source document (dedup invariant — important when a node's chunks span the same doc).
 - `get_provenance` returns `ProvenanceTrail(node_id=N, provenance_chain=[])` for a node not in the store.
+- `record_provenance` leaves `list_relationships()` and `count_relationships()` unchanged — lineage channel, not a relationship-surface edge (ADR-0055).
 - After `apply_schema`, Neo4j has a `:Document(id)` uniqueness constraint.
 - `get_related(depth=1)` returns only direct neighbors.
 - `list_nodes` returns every node ever merged (no filtering by import_run_id).

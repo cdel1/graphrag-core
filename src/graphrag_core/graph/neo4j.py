@@ -23,6 +23,13 @@ from graphrag_core.models import (
 # Note: `from neo4j import AsyncGraphDatabase` is intentionally NOT here.
 # See Neo4jGraphStore.__init__ below.
 
+# Provenance is a lineage channel, not a relationship-surface edge (ADR-0055).
+# This backend materialises `record_provenance` lineage as a FROM_CHUNK edge,
+# but that is an internal representation: `get_provenance` is the only read
+# path, and every relationship-surface read must exclude the edge.
+_PROVENANCE_REL_TYPE = "FROM_CHUNK"
+_EXCLUDE_PROVENANCE = f"type(r) <> '{_PROVENANCE_REL_TYPE}'"
+
 
 class Neo4jGraphStore:
     """Neo4j async implementation of the GraphStore Protocol."""
@@ -92,7 +99,7 @@ class Neo4jGraphStore:
             "MERGE (c:Chunk {id: $chunk_id}) "
             "WITH c "
             "MATCH (n {id: $node_id}) "
-            "MERGE (n)-[r:FROM_CHUNK]->(c) "
+            f"MERGE (n)-[r:{_PROVENANCE_REL_TYPE}]->(c) "
             "SET r._import_run_id = $run_id"
         )
         async with self._driver.session(database=self._database) as session:
@@ -120,7 +127,7 @@ class Neo4jGraphStore:
     async def get_provenance(self, node_id: str) -> ProvenanceTrail:
         query = (
             "MATCH (n {id: $id}) "
-            "OPTIONAL MATCH (n)-[:FROM_CHUNK]->(c:Chunk) "
+            f"OPTIONAL MATCH (n)-[:{_PROVENANCE_REL_TYPE}]->(c:Chunk) "
             "OPTIONAL MATCH (c)-[:FROM_DOCUMENT]->(d:Document) "
             "RETURN n, labels(n) AS node_labels, "
             "       collect(DISTINCT c.id) AS chunk_ids, "
@@ -152,6 +159,9 @@ class Neo4jGraphStore:
     ) -> list[GraphNode]:
         depth = min(max(depth, 1), MAX_DEPTH)
         if rel_type:
+            if rel_type == _PROVENANCE_REL_TYPE:
+                # Lineage is readable only via get_provenance (ADR-0055).
+                return []
             validate_identifier(rel_type, "relationship type")
             query = (
                 f"MATCH (n {{id: $id}})-[:{rel_type}*1..{depth}]-(m) "
@@ -160,8 +170,9 @@ class Neo4jGraphStore:
             )
         else:
             query = (
-                f"MATCH (n {{id: $id}})-[*1..{depth}]-(m) "
+                f"MATCH (n {{id: $id}})-[rels*1..{depth}]-(m) "
                 "WHERE m.id <> $id "
+                f"AND ALL(rel IN rels WHERE type(rel) <> '{_PROVENANCE_REL_TYPE}') "
                 "RETURN DISTINCT m, labels(m) AS labels"
             )
         async with self._driver.session(database=self._database) as session:
@@ -212,7 +223,7 @@ class Neo4jGraphStore:
             return nodes
 
     async def count_relationships(self) -> int:
-        query = "MATCH ()-[r]->() WHERE type(r) <> 'FROM_CHUNK' RETURN count(r) AS cnt"
+        query = f"MATCH ()-[r]->() WHERE {_EXCLUDE_PROVENANCE} RETURN count(r) AS cnt"
         async with self._driver.session(database=self._database) as session:
             result = await session.run(query)
             record = await result.single()
@@ -221,6 +232,7 @@ class Neo4jGraphStore:
     async def list_relationships(self) -> list[GraphRelationship]:
         query = (
             "MATCH (a)-[r]->(b) "
+            f"WHERE {_EXCLUDE_PROVENANCE} "
             "RETURN a.id AS source_id, type(r) AS rel_type, b.id AS target_id, "
             "properties(r) AS props"
         )

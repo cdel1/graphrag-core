@@ -147,6 +147,33 @@ class GraphStoreContractTests:
         doc_steps = [s for s in trail.provenance_chain if s.level == "document"]
         assert doc_steps[0].id == "doc-1"
 
+    async def test_provenance_is_lineage_channel_not_relationship_surface(self) -> None:
+        """Lineage recorded via record_provenance is readable only through
+        get_provenance — it never appears on the relationship surface (ADR-0055):
+        list_relationships() does not return it, count_relationships() does not
+        count it, and get_related() does not traverse it. How a backend
+        represents the lineage internally is unspecified."""
+        store = await self._store()
+        await store.merge_node(_node("a"), "run-1")
+        await store.merge_node(_node("b"), "run-1")
+        await store.merge_relationship(_rel("a", "b"), "run-1")
+        surface_before = {
+            (r.source_id, r.type, r.target_id) for r in await store.list_relationships()
+        }
+        count_before = await store.count_relationships()
+
+        await store.record_provenance("a", "chunk-1", "run-1")
+
+        surface_after = {
+            (r.source_id, r.type, r.target_id) for r in await store.list_relationships()
+        }
+        assert surface_after == surface_before
+        assert await store.count_relationships() == count_before
+        assert "chunk-1" not in {n.id for n in await store.get_related("a")}
+        trail = await store.get_provenance("a")
+        chunk_steps = [s for s in trail.provenance_chain if s.level == "chunk"]
+        assert [s.id for s in chunk_steps] == ["chunk-1"]
+
     async def test_flush_is_legal_and_state_remains_visible(self) -> None:
         store = await self._store()
         await store.merge_node(_node("a"), "run-1")

@@ -10,6 +10,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **`DocumentMetadata.quarter` removed** (deprecated since v0.6.0, originally slated for removal at v0.7.0; the canonical field is `period`). The ingest-time `quarter → period` fallback in `IngestionPipeline` is removed with it. Callers still passing `quarter` must migrate to `period`: the model now ignores the unknown `quarter` key, so a legacy `quarter` value no longer reaches the persisted `:Document` node's `period` property.
 
+### Changed
+
+- **Behavior change: `Neo4jGraphStore.list_relationships` no longer returns provenance (`FROM_CHUNK`) links.** `count_relationships` already excluded them; the same exclusion now applies to `list_relationships` and to untyped `get_related` traversal, making the backend self-consistent. Provenance recorded via `record_provenance` is a **lineage channel**, read exclusively through `get_provenance` — never visible on the relationship surface; how a backend represents lineage internally is unspecified (ADR-0055). `InMemoryGraphStore` already conformed (no change).
+
+### Added
+
+- Contract suite: `GraphStoreContractTests` now pins provenance as a lineage channel — after `record_provenance`, `list_relationships()` and `count_relationships()` are unchanged and `get_related()` does not reach the chunk, while `get_provenance` returns the trail. A backend that surfaces lineage as a relationship now fails the suite.
+
 ## [0.15.0] — 2026-06-29
 
 Backend-parity and robustness fixes surfaced by running an engine stress test against a real Neo4j backend with a live LLM — none were visible to the in-memory test suite.
