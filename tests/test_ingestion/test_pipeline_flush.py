@@ -23,7 +23,7 @@ def _metadata():
 
     return DocumentMetadata(
         title="", source="", doc_type="text/plain",
-        date=None, quarter=None, sha256="abc123",
+        date=None, sha256="abc123",
     )
 
 

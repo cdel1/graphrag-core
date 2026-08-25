@@ -14,7 +14,6 @@ def _metadata(source: bytes, doc_type: str) -> DocumentMetadata:
         source="",
         doc_type=doc_type,
         date=None,
-        quarter=None,
         sha256=hashlib.sha256(source).hexdigest(),
     )
 
