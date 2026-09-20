@@ -344,3 +344,63 @@ def test_extraction_result_quality_signals_round_trip():
     serialized = result.model_dump(mode="json")
     restored = ExtractionResult.model_validate(serialized)
     assert restored.quality_signals == {"pass2_orphan_edges": 3, "pass2_short_circuited": 1}
+
+
+class TestRejectedEmissions:
+    def test_extraction_result_rejections_default_empty(self):
+        from graphrag_core.models import ExtractionResult
+        result = ExtractionResult(nodes=[], relationships=[], provenance=[])
+        assert result.rejected_nodes == []
+        assert result.rejected_relationships == []
+
+    def test_rejections_survive_a_json_round_trip(self):
+        from graphrag_core.models import (
+            ExtractionResult,
+            RejectedNode,
+            RejectedRelationship,
+            RejectionReason,
+        )
+
+        result = ExtractionResult(
+            nodes=[], relationships=[], provenance=[],
+            rejected_nodes=[
+                RejectedNode(
+                    node=ExtractedNode(id="loc-nyc", label="Location", properties={"name": "NYC"}),
+                    reason=RejectionReason.UNDECLARED_NODE_LABEL,
+                    chunk_id="chunk-0",
+                ),
+            ],
+            rejected_relationships=[
+                RejectedRelationship(
+                    relationship=ExtractedRelationship(
+                        source_id="c1", target_id="s1", type="ASSERTS",
+                        properties={"excerpt": "the passage that justified it"},
+                    ),
+                    reason=RejectionReason.ENDPOINT_TYPE_VIOLATION,
+                    chunk_id="chunk-0",
+                ),
+            ],
+        )
+
+        restored = ExtractionResult.model_validate(result.model_dump(mode="json"))
+
+        assert restored.rejected_nodes[0].node.properties == {"name": "NYC"}
+        assert restored.rejected_nodes[0].reason == RejectionReason.UNDECLARED_NODE_LABEL
+        assert restored.rejected_nodes[0].chunk_id == "chunk-0"
+        assert restored.rejected_relationships[0].relationship.properties["excerpt"] == (
+            "the passage that justified it"
+        )
+        assert restored.rejected_relationships[0].reason == (
+            RejectionReason.ENDPOINT_TYPE_VIOLATION
+        )
+
+    def test_rejection_reason_serializes_as_its_string_value(self):
+        from graphrag_core.models import RejectedNode, RejectionReason
+
+        rejected = RejectedNode(
+            node=ExtractedNode(id="loc-nyc", label="Location", properties={}),
+            reason=RejectionReason.UNDECLARED_NODE_LABEL,
+        )
+
+        assert rejected.model_dump(mode="json")["reason"] == "undeclared_node_label"
+        assert rejected.chunk_id is None

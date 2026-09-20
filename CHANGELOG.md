@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### BREAKING
 
+- **`validate_extraction()` returns a `SchemaAdmission`, not a `(nodes, relationships)` tuple.** The new object carries the admitted nodes and relationships under the same names, plus `rejected_nodes` / `rejected_relationships`. Callers unpacking the tuple migrate to `admission.nodes` / `admission.relationships`. It also takes an optional `chunk_id`, recorded on every rejection it produces.
 - **`DocumentMetadata.quarter` removed** (deprecated since v0.6.0, originally slated for removal at v0.7.0; the canonical field is `period`). The ingest-time `quarter → period` fallback in `IngestionPipeline` is removed with it. Callers still passing `quarter` must migrate to `period`: the model now ignores the unknown `quarter` key, so a legacy `quarter` value no longer reaches the persisted `:Document` node's `period` property.
 
 ### Changed
@@ -16,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Admission is not destruction: `LLMExtractionEngine` hands back what the schema did not admit.** An emission outside the schema previously ceased to exist — with its properties, and so with the passage that justified it. It now returns on `ExtractionResult.rejected_nodes` / `.rejected_relationships`, preserved verbatim, typed by `RejectionReason` (`undeclared_node_label`, `undeclared_relationship_type`, `dangling_endpoint`, `endpoint_type_violation`) and carrying the `chunk_id` it came from — the provenance link an un-admitted node would have received. The admitted set is unchanged: the schema still gates what enters the typed graph, and consumers still decide severity. New models `RejectionReason`, `RejectedNode`, `RejectedRelationship`, `SchemaAdmission`; a chunk with rejections also logs the rejected labels and edge types at INFO. Contract, error modes and the new memory invariant documented in `extraction/INTERFACE.md`. Per [ADR-0054 D2](https://github.com/cdel1/tessera/blob/main/docs/adr/0054-ontology-activation-contracts.md).
 - Contract suite: `GraphStoreContractTests` now pins provenance as a lineage channel — after `record_provenance`, `list_relationships()` and `count_relationships()` are unchanged and `get_related()` does not reach the chunk, while `get_provenance` returns the trail. A backend that surfaces lineage as a relationship now fails the suite.
 
 ## [0.15.0] — 2026-06-29

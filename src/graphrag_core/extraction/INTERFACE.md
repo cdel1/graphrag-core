@@ -24,9 +24,9 @@ async def extract(
 
 ### Contracts
 
-- **Tier discipline:** must only extract types the schema defines. Any node label not in `schema.node_types` is dropped silently or recorded as a validation issue (implementation choice; default `LLMExtractionEngine` drops + logs).
+- **Tier discipline:** only types the schema defines reach `ExtractionResult.nodes` / `.relationships`. A node label not in `schema.node_types`, or a relationship the schema does not admit, is **not admitted — and not destroyed**: it comes back on `rejected_nodes` / `rejected_relationships` (see *Admission is not destruction* below).
 - **No Tier 2 / Tier 3 invention:** the engine produces Claims, Entities, Stakeholders — not `Topic`s, not curated `Risk`s, not `AcceptanceCriterion`s. Those are post-curation. A schema that *allows* the LLM to extract Topic-like types is misconfigured per current Lacuna policy (per `2026-04-21-multi-strategy-extraction-design.md` §"What gets deprecated").
-- **Provenance is non-optional.** Every returned node must appear in `ExtractionResult.provenance` linking it back to at least one source chunk.
+- **Provenance is non-optional.** Every *admitted* node must appear in `ExtractionResult.provenance` linking it back to at least one source chunk. A rejected node carries its source chunk on the rejection's `chunk_id` instead — `provenance` never references a node that is not in `nodes`.
 - **`import_run` is read-only.** The engine doesn't mutate the `ImportRun` passed in; callers may update `entities_extracted` after.
 - The engine is **stateless** between calls. Per-document state lives in the caller's pipeline.
 
@@ -34,17 +34,45 @@ async def extract(
 
 - LLM provider failure → propagates the underlying exception (caller chooses retry policy).
 - Empty `chunks` → returns `ExtractionResult(nodes=[], relationships=[], provenance=[])`, does not raise.
-- Schema with zero `node_types` → returns empty result and logs a warning.
+- Schema with zero `node_types` → admits nothing: every emitted node comes back as `undeclared_node_label` and every relationship as `undeclared_relationship_type` or `dangling_endpoint`. The default engine logs each chunk's rejections at INFO; it does not separately warn about the empty schema.
+- A chunk whose LLM response fails `ChunkExtractionResult` validation is skipped **whole** (default `LLMExtractionEngine`): it contributes nothing, is counted in `quality_signals["malformed_chunk_extractions"]`, and has nothing to hand back — the response never parsed into typed emissions, and the raw text sits behind the `LLMClient` seam. Non-destruction below covers emissions the parse produced.
 
 ### Performance invariants
 
 - O(chunks) LLM calls in the naive implementation. Batching is implementation-specific.
 - No graph I/O during extraction (the engine doesn't touch `GraphStore`).
 - LLM call latency dominates; orchestrate concurrency at the caller level.
+- Result memory is O(*emitted*), not O(*admitted*): rejections retain the full emission, properties included, for the whole run. A schema that admits little retains most of the LLM's output where it previously retained none. Bounded by what the model already produced, and deliberately uncapped — a truncated rejection set restores the silence this contract removes.
 
 ### Non-determinism
 
-LLM outputs vary across calls. Implementations should use `temperature=0` for extraction. The Pydantic validation layer prunes outputs that don't match the schema — so non-determinism manifests as *recall* variance (which entities are extracted), not as *schema violations*.
+LLM outputs vary across calls. Implementations should use `temperature=0` for extraction. Outputs that don't match the schema are held out of the admitted set — so non-determinism manifests as *recall* variance (which entities are extracted), not as *schema violations*.
+
+---
+
+## Admission is not destruction
+
+The schema decides what enters the typed graph. It does **not** decide what the extraction run is allowed to remember. For every chunk whose response parsed (see *Error modes* for the one that doesn't), everything the extractor emitted is recoverable from the `ExtractionResult`:
+
+```python
+emitted_nodes == result.nodes + [r.node for r in result.rejected_nodes]
+emitted_rels  == result.relationships + [r.relationship for r in result.rejected_relationships]
+```
+
+A rejection preserves the emission verbatim — properties included, which is where an extractor puts the passage that justified the emission — plus the chunk it came from and **why** it was not admitted:
+
+| `RejectionReason` | Fires when |
+|---|---|
+| `undeclared_node_label` | the node's label is not in `schema.node_types` |
+| `undeclared_relationship_type` | the relationship's type is not in `schema.relationship_types` |
+| `dangling_endpoint` | an endpoint id is not an admitted node (including one rejected for its label) |
+| `endpoint_type_violation` | endpoint labels violate the type's `source_types` / `target_types` |
+
+Checks run in that order per relationship and the first failure wins. Consumers decide severity — the engine's job is to report the cause, never to make the emission unreconstructable. A run that rejects everything is a misconfiguration signal, not an empty run.
+
+`validate_extraction(nodes, rels, schema, chunk_id=None) -> SchemaAdmission` is the same split available standalone, for strategies that own their own dispatch.
+
+Distinct from `SchemaViolation` (BB3): that reports on nodes **already persisted** in a `GraphStore` and references them by id; a rejection carries the un-persisted emission itself.
 
 ---
 
@@ -130,4 +158,4 @@ Then register the strategy in Lacuna's `extraction/strategy.py::get_strategy()`.
 - Post-processor: idempotency (process(process(r)) == process(r)).
 - Post-processor: provenance preserved across canonicalization.
 - Engine: empty input → empty output, no exceptions.
-- Engine: schema violations dropped (or surfaced as `validation_issues`) — never silently kept.
+- Engine: schema violations never reach `nodes` / `relationships` — and never vanish: each comes back on `rejected_nodes` / `rejected_relationships`, typed by reason, with its properties (and so its warrant) intact.
