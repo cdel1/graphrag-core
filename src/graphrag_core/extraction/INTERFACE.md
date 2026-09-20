@@ -34,13 +34,15 @@ async def extract(
 
 - LLM provider failure → propagates the underlying exception (caller chooses retry policy).
 - Empty `chunks` → returns `ExtractionResult(nodes=[], relationships=[], provenance=[])`, does not raise.
-- Schema with zero `node_types` → returns empty result and logs a warning.
+- Schema with zero `node_types` → admits nothing: every emitted node comes back as `undeclared_node_label` and every relationship as `undeclared_relationship_type` or `dangling_endpoint`. The default engine logs each chunk's rejections at INFO; it does not separately warn about the empty schema.
+- A chunk whose LLM response fails `ChunkExtractionResult` validation is skipped **whole** (default `LLMExtractionEngine`): it contributes nothing, is counted in `quality_signals["malformed_chunk_extractions"]`, and has nothing to hand back — the response never parsed into typed emissions, and the raw text sits behind the `LLMClient` seam. Non-destruction below covers emissions the parse produced.
 
 ### Performance invariants
 
 - O(chunks) LLM calls in the naive implementation. Batching is implementation-specific.
 - No graph I/O during extraction (the engine doesn't touch `GraphStore`).
 - LLM call latency dominates; orchestrate concurrency at the caller level.
+- Result memory is O(*emitted*), not O(*admitted*): rejections retain the full emission, properties included, for the whole run. A schema that admits little retains most of the LLM's output where it previously retained none. Bounded by what the model already produced, and deliberately uncapped — a truncated rejection set restores the silence this contract removes.
 
 ### Non-determinism
 
@@ -50,7 +52,7 @@ LLM outputs vary across calls. Implementations should use `temperature=0` for ex
 
 ## Admission is not destruction
 
-The schema decides what enters the typed graph. It does **not** decide what the extraction run is allowed to remember. Everything the extractor emitted is recoverable from the `ExtractionResult`:
+The schema decides what enters the typed graph. It does **not** decide what the extraction run is allowed to remember. For every chunk whose response parsed (see *Error modes* for the one that doesn't), everything the extractor emitted is recoverable from the `ExtractionResult`:
 
 ```python
 emitted_nodes == result.nodes + [r.node for r in result.rejected_nodes]

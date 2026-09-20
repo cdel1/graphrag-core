@@ -56,28 +56,11 @@ def validate_extraction(
         for rt in schema.relationship_types
     }
 
-    admitted_nodes = [n for n in nodes if n.label in allowed_labels]
-    rejected_nodes = [
-        RejectedNode(
-            node=n,
-            reason=RejectionReason.UNDECLARED_NODE_LABEL,
-            chunk_id=chunk_id,
-        )
-        for n in nodes
-        if n.label not in allowed_labels
-    ]
+    admitted_nodes, rejected_nodes = _admit_nodes(nodes, allowed_labels, chunk_id)
     node_labels = {n.id: n.label for n in admitted_nodes}
-
-    admitted_rels: list[ExtractedRelationship] = []
-    rejected_rels: list[RejectedRelationship] = []
-    for rel in rels:
-        reason = _rejection_reason(rel, node_labels, rel_constraints)
-        if reason is None:
-            admitted_rels.append(rel)
-        else:
-            rejected_rels.append(
-                RejectedRelationship(relationship=rel, reason=reason, chunk_id=chunk_id)
-            )
+    admitted_rels, rejected_rels = _admit_relationships(
+        rels, node_labels, rel_constraints, chunk_id
+    )
 
     return SchemaAdmission(
         nodes=admitted_nodes,
@@ -85,6 +68,48 @@ def validate_extraction(
         rejected_nodes=rejected_nodes,
         rejected_relationships=rejected_rels,
     )
+
+
+def _admit_nodes(
+    nodes: list[ExtractedNode],
+    allowed_labels: set[str],
+    chunk_id: str | None,
+) -> tuple[list[ExtractedNode], list[RejectedNode]]:
+    """Split nodes on whether the schema declares their label."""
+    admitted: list[ExtractedNode] = []
+    rejected: list[RejectedNode] = []
+    for node in nodes:
+        if node.label in allowed_labels:
+            admitted.append(node)
+        else:
+            rejected.append(
+                RejectedNode(
+                    node=node,
+                    reason=RejectionReason.UNDECLARED_NODE_LABEL,
+                    chunk_id=chunk_id,
+                )
+            )
+    return admitted, rejected
+
+
+def _admit_relationships(
+    rels: list[ExtractedRelationship],
+    node_labels: dict[str, str],
+    rel_constraints: dict[str, tuple[set[str], set[str]]],
+    chunk_id: str | None,
+) -> tuple[list[ExtractedRelationship], list[RejectedRelationship]]:
+    """Split relationships on the first admission check each one fails."""
+    admitted: list[ExtractedRelationship] = []
+    rejected: list[RejectedRelationship] = []
+    for rel in rels:
+        reason = _rejection_reason(rel, node_labels, rel_constraints)
+        if reason is None:
+            admitted.append(rel)
+        else:
+            rejected.append(
+                RejectedRelationship(relationship=rel, reason=reason, chunk_id=chunk_id)
+            )
+    return admitted, rejected
 
 
 def _rejection_reason(
@@ -108,6 +133,35 @@ def _rejection_reason(
     ):
         return RejectionReason.ENDPOINT_TYPE_VIOLATION
     return None
+
+
+def _assemble_result(
+    per_chunk: list[tuple[str, SchemaAdmission]],
+    malformed_chunk_extractions: int,
+) -> ExtractionResult:
+    """Flatten per-chunk admissions into one run-level result.
+
+    Provenance is built from the admitted nodes only; a rejected node's chunk
+    link travels on the rejection itself.
+    """
+    return ExtractionResult(
+        nodes=[node for _, a in per_chunk for node in a.nodes],
+        relationships=[rel for _, a in per_chunk for rel in a.relationships],
+        provenance=[
+            ProvenanceLink(chunk_id=chunk_id, node_id=node.id, confidence=1.0)
+            for chunk_id, a in per_chunk
+            for node in a.nodes
+        ],
+        rejected_nodes=[r for _, a in per_chunk for r in a.rejected_nodes],
+        rejected_relationships=[
+            r for _, a in per_chunk for r in a.rejected_relationships
+        ],
+        quality_signals=(
+            {"malformed_chunk_extractions": malformed_chunk_extractions}
+            if malformed_chunk_extractions
+            else None
+        ),
+    )
 
 
 def _log_rejections(chunk_id: str, admission: SchemaAdmission) -> None:
@@ -179,11 +233,7 @@ class LLMExtractionEngine:
         schema: OntologySchema,
         import_run: ImportRun,
     ) -> ExtractionResult:
-        all_nodes: list[ExtractedNode] = []
-        all_rels: list[ExtractedRelationship] = []
-        all_provenance: list[ProvenanceLink] = []
-        all_rejected_nodes: list[RejectedNode] = []
-        all_rejected_rels: list[RejectedRelationship] = []
+        per_chunk: list[tuple[str, SchemaAdmission]] = []
         malformed_chunk_extractions = 0
 
         system_prompt = self._prompt_builder.build_system_prompt(schema)
@@ -201,30 +251,9 @@ class LLMExtractionEngine:
 
             admission = self._validate(nodes, rels, schema, chunk.id)
             _log_rejections(chunk.id, admission)
+            per_chunk.append((chunk.id, admission))
 
-            all_provenance.extend(
-                ProvenanceLink(chunk_id=chunk.id, node_id=node.id, confidence=1.0)
-                for node in admission.nodes
-            )
-            all_nodes.extend(admission.nodes)
-            all_rels.extend(admission.relationships)
-            all_rejected_nodes.extend(admission.rejected_nodes)
-            all_rejected_rels.extend(admission.rejected_relationships)
-
-        quality_signals = (
-            {"malformed_chunk_extractions": malformed_chunk_extractions}
-            if malformed_chunk_extractions
-            else None
-        )
-
-        return ExtractionResult(
-            nodes=all_nodes,
-            relationships=all_rels,
-            provenance=all_provenance,
-            rejected_nodes=all_rejected_nodes,
-            rejected_relationships=all_rejected_rels,
-            quality_signals=quality_signals,
-        )
+        return _assemble_result(per_chunk, malformed_chunk_extractions)
 
     async def _extract_chunk(
         self, chunk: Chunk, system_prompt: str

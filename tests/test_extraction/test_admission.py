@@ -9,6 +9,7 @@ how it decided.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 
 import pytest
@@ -313,6 +314,59 @@ class TestNothingIsDestroyed:
 
         assert result.rejected_nodes == []
         assert result.rejected_relationships == []
+
+    @pytest.mark.asyncio
+    async def test_schema_admitting_nothing_still_returns_every_emission(self):
+        """Zero declared node types: nothing is admitted, nothing is lost."""
+        empty_schema = OntologySchema(node_types=[], relationship_types=[])
+        response = json.dumps({
+            "nodes": [{"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}}],
+            "relationships": [
+                {"source_id": "person-alice", "target_id": "person-alice", "type": "WORKS_AT",
+                 "properties": {}},
+            ],
+        })
+
+        engine = LLMExtractionEngine(llm_client=FakeLLMClient(responses=[response]))
+        result = await engine.extract(
+            chunks=_chunks(), schema=empty_schema, import_run=_import_run()
+        )
+
+        assert result.nodes == []
+        assert result.relationships == []
+        assert result.rejected_nodes[0].reason == RejectionReason.UNDECLARED_NODE_LABEL
+        assert result.rejected_relationships[0].reason == (
+            RejectionReason.UNDECLARED_RELATIONSHIP_TYPE
+        )
+
+    @pytest.mark.asyncio
+    async def test_rejections_are_logged_with_names(self, caplog):
+        response = json.dumps({
+            "nodes": [{"id": "loc-nyc", "label": "Location", "properties": {}}],
+            "relationships": [
+                {"source_id": "loc-nyc", "target_id": "loc-nyc", "type": "FOUNDED",
+                 "properties": {}},
+            ],
+        })
+
+        with caplog.at_level(logging.INFO, logger="graphrag_core.extraction.engine"):
+            await _extract([response])
+
+        assert "Location" in caplog.text
+        assert "FOUNDED" in caplog.text
+        assert "chunk-0" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_a_clean_chunk_logs_nothing(self, caplog):
+        response = json.dumps({
+            "nodes": [{"id": "person-alice", "label": "Person", "properties": {"name": "Alice"}}],
+            "relationships": [],
+        })
+
+        with caplog.at_level(logging.INFO, logger="graphrag_core.extraction.engine"):
+            await _extract([response])
+
+        assert caplog.text == ""
 
     @pytest.mark.asyncio
     async def test_rejections_carry_the_chunk_they_came_from(self):
