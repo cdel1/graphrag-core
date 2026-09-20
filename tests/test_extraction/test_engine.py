@@ -17,6 +17,7 @@ from graphrag_core.models import (
     NodeTypeDefinition,
     OntologySchema,
     PropertyDefinition,
+    RejectionReason,
     RelationshipTypeDefinition,
 )
 
@@ -485,7 +486,7 @@ class TestDescriptionsInPrompt:
 
 
 class TestValidateExtractionStandalone:
-    def test_drops_off_schema_nodes(self):
+    def test_off_schema_node_is_rejected_not_dropped(self):
         from graphrag_core.extraction import validate_extraction
 
         nodes = [
@@ -494,12 +495,14 @@ class TestValidateExtractionStandalone:
         ]
         rels = []
 
-        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+        admission = validate_extraction(nodes, rels, _schema())
 
-        assert len(valid_nodes) == 1
-        assert valid_nodes[0].label == "Person"
+        assert len(admission.nodes) == 1
+        assert admission.nodes[0].label == "Person"
+        assert [r.node.id for r in admission.rejected_nodes] == ["loc-nyc"]
+        assert admission.rejected_nodes[0].reason == RejectionReason.UNDECLARED_NODE_LABEL
 
-    def test_drops_off_schema_relationships(self):
+    def test_off_schema_relationship_is_rejected_not_dropped(self):
         from graphrag_core.extraction import validate_extraction
 
         nodes = [
@@ -510,12 +513,15 @@ class TestValidateExtractionStandalone:
             ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="FOUNDED", properties={}),
         ]
 
-        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+        admission = validate_extraction(nodes, rels, _schema())
 
-        assert len(valid_nodes) == 2
-        assert len(valid_rels) == 0
+        assert len(admission.nodes) == 2
+        assert admission.relationships == []
+        assert admission.rejected_relationships[0].reason == (
+            RejectionReason.UNDECLARED_RELATIONSHIP_TYPE
+        )
 
-    def test_drops_dangling_relationships(self):
+    def test_dangling_relationship_is_rejected_not_dropped(self):
         from graphrag_core.extraction import validate_extraction
 
         nodes = [
@@ -525,12 +531,13 @@ class TestValidateExtractionStandalone:
             ExtractedRelationship(source_id="person-alice", target_id="company-gone", type="WORKS_AT", properties={}),
         ]
 
-        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+        admission = validate_extraction(nodes, rels, _schema())
 
-        assert len(valid_nodes) == 1
-        assert len(valid_rels) == 0
+        assert len(admission.nodes) == 1
+        assert admission.relationships == []
+        assert admission.rejected_relationships[0].reason == RejectionReason.DANGLING_ENDPOINT
 
-    def test_drops_relationship_with_wrong_source_type(self):
+    def test_wrong_source_type_is_rejected_not_dropped(self):
         from graphrag_core.extraction import validate_extraction
 
         nodes = [
@@ -541,9 +548,12 @@ class TestValidateExtractionStandalone:
             ExtractedRelationship(source_id="company-a", target_id="company-b", type="WORKS_AT", properties={}),
         ]
 
-        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+        admission = validate_extraction(nodes, rels, _schema())
 
-        assert len(valid_rels) == 0
+        assert admission.relationships == []
+        assert admission.rejected_relationships[0].reason == (
+            RejectionReason.ENDPOINT_TYPE_VIOLATION
+        )
 
     def test_valid_extraction_passes_through(self):
         from graphrag_core.extraction import validate_extraction
@@ -556,10 +566,34 @@ class TestValidateExtractionStandalone:
             ExtractedRelationship(source_id="person-alice", target_id="company-acme", type="WORKS_AT", properties={}),
         ]
 
-        valid_nodes, valid_rels = validate_extraction(nodes, rels, _schema())
+        admission = validate_extraction(nodes, rels, _schema())
 
-        assert len(valid_nodes) == 2
-        assert len(valid_rels) == 1
+        assert len(admission.nodes) == 2
+        assert len(admission.relationships) == 1
+        assert admission.rejected_nodes == []
+        assert admission.rejected_relationships == []
+
+    def test_chunk_id_is_attached_to_every_rejection(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [ExtractedNode(id="loc-nyc", label="Location", properties={"name": "NYC"})]
+        rels = [
+            ExtractedRelationship(source_id="loc-nyc", target_id="loc-nyc", type="WORKS_AT", properties={}),
+        ]
+
+        admission = validate_extraction(nodes, rels, _schema(), chunk_id="chunk-7")
+
+        assert admission.rejected_nodes[0].chunk_id == "chunk-7"
+        assert admission.rejected_relationships[0].chunk_id == "chunk-7"
+
+    def test_chunk_id_is_none_when_not_supplied(self):
+        from graphrag_core.extraction import validate_extraction
+
+        nodes = [ExtractedNode(id="loc-nyc", label="Location", properties={"name": "NYC"})]
+
+        admission = validate_extraction(nodes, [], _schema())
+
+        assert admission.rejected_nodes[0].chunk_id is None
 
 
 class TestExtractionPromptBuilder:

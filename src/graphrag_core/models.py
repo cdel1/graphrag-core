@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -102,10 +103,69 @@ class ProvenanceLink(BaseModel):
     confidence: float
 
 
+class RejectionReason(str, Enum):
+    """Why the schema did not admit an emission.
+
+    A consumer deciding severity needs the cause, not a bare list: an
+    undeclared label is a different signal from an edge whose endpoints are
+    the right types in the wrong order.
+    """
+
+    UNDECLARED_NODE_LABEL = "undeclared_node_label"
+    UNDECLARED_RELATIONSHIP_TYPE = "undeclared_relationship_type"
+    DANGLING_ENDPOINT = "dangling_endpoint"
+    ENDPOINT_TYPE_VIOLATION = "endpoint_type_violation"
+
+
+class RejectedNode(BaseModel):
+    """A node the extractor emitted and the schema did not admit.
+
+    The node is preserved verbatim — properties included. ``chunk_id`` is the
+    chunk the emission came from, i.e. the provenance link the node would have
+    received had it been admitted; ``None`` when the caller validated outside
+    a chunk context.
+    """
+
+    node: ExtractedNode
+    reason: RejectionReason
+    chunk_id: str | None = None
+
+
+class RejectedRelationship(BaseModel):
+    """A relationship the extractor emitted and the schema did not admit.
+
+    Preserved verbatim, endpoints and properties included — a relationship's
+    properties are where an extractor puts the passage that justified it, so
+    discarding the relationship would destroy that passage.
+    """
+
+    relationship: ExtractedRelationship
+    reason: RejectionReason
+    chunk_id: str | None = None
+
+
+class SchemaAdmission(BaseModel):
+    """What a schema admitted, and what it rejected, from one set of emissions.
+
+    Admission gates what enters the typed graph; it never destroys what the
+    extractor returned. ``nodes`` ∪ ``rejected_nodes`` is exactly the emitted
+    node set, and likewise for relationships.
+    """
+
+    nodes: list[ExtractedNode] = Field(default_factory=list)
+    relationships: list[ExtractedRelationship] = Field(default_factory=list)
+    rejected_nodes: list[RejectedNode] = Field(default_factory=list)
+    rejected_relationships: list[RejectedRelationship] = Field(default_factory=list)
+
+
 class ExtractionResult(BaseModel):
     nodes: list[ExtractedNode]
     relationships: list[ExtractedRelationship]
     provenance: list[ProvenanceLink]
+    rejected_nodes: list[RejectedNode] = Field(default_factory=list)
+    """Emitted nodes the schema did not admit, preserved verbatim and typed by reason."""
+    rejected_relationships: list[RejectedRelationship] = Field(default_factory=list)
+    """Emitted relationships the schema did not admit, preserved verbatim and typed by reason."""
     quality_signals: dict[str, int | float] | None = None
     """Optional per-strategy diagnostic counters / values.
 

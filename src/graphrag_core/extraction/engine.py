@@ -16,6 +16,10 @@ from graphrag_core.models import (
     ImportRun,
     OntologySchema,
     ProvenanceLink,
+    RejectedNode,
+    RejectedRelationship,
+    RejectionReason,
+    SchemaAdmission,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,40 +29,99 @@ def validate_extraction(
     nodes: list[ExtractedNode],
     rels: list[ExtractedRelationship],
     schema: OntologySchema,
-) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-    """Filter extracted nodes and relationships to match schema constraints.
+    chunk_id: str | None = None,
+) -> SchemaAdmission:
+    """Split extracted nodes and relationships into admitted and rejected.
 
-    Removes:
-    - Nodes with labels not in the schema
-    - Relationships with types not in the schema
-    - Relationships referencing non-existent node IDs
-    - Relationships violating source/target type constraints
+    The schema decides what enters the typed graph; nothing the extractor
+    emitted is discarded. A rejected emission comes back verbatim — properties
+    included, so the passage that justified it survives — typed by the reason
+    it was not admitted.
+
+    Args:
+        nodes: Nodes the extractor emitted.
+        rels: Relationships the extractor emitted.
+        schema: The ontology schema that decides admission.
+        chunk_id: Chunk the emissions came from, recorded on each rejection so
+            an un-admitted node's chunk link survives with it. ``None`` when
+            validating outside a chunk context.
+
+    Returns:
+        The admitted nodes and relationships plus every rejection, typed by
+        :class:`RejectionReason`.
     """
     allowed_labels = {nt.label for nt in schema.node_types}
-    allowed_rel_types = {rt.type for rt in schema.relationship_types}
     rel_constraints = {
         rt.type: (set(rt.source_types), set(rt.target_types))
         for rt in schema.relationship_types
     }
 
-    valid_nodes = [n for n in nodes if n.label in allowed_labels]
-    valid_node_ids = {n.id for n in valid_nodes}
-    node_labels = {n.id: n.label for n in valid_nodes}
+    admitted_nodes = [n for n in nodes if n.label in allowed_labels]
+    rejected_nodes = [
+        RejectedNode(
+            node=n,
+            reason=RejectionReason.UNDECLARED_NODE_LABEL,
+            chunk_id=chunk_id,
+        )
+        for n in nodes
+        if n.label not in allowed_labels
+    ]
+    node_labels = {n.id: n.label for n in admitted_nodes}
 
-    valid_rels = []
+    admitted_rels: list[ExtractedRelationship] = []
+    rejected_rels: list[RejectedRelationship] = []
     for rel in rels:
-        if rel.type not in allowed_rel_types:
-            continue
-        if rel.source_id not in valid_node_ids or rel.target_id not in valid_node_ids:
-            continue
-        source_types, target_types = rel_constraints[rel.type]
-        if node_labels[rel.source_id] not in source_types:
-            continue
-        if node_labels[rel.target_id] not in target_types:
-            continue
-        valid_rels.append(rel)
+        reason = _rejection_reason(rel, node_labels, rel_constraints)
+        if reason is None:
+            admitted_rels.append(rel)
+        else:
+            rejected_rels.append(
+                RejectedRelationship(relationship=rel, reason=reason, chunk_id=chunk_id)
+            )
 
-    return valid_nodes, valid_rels
+    return SchemaAdmission(
+        nodes=admitted_nodes,
+        relationships=admitted_rels,
+        rejected_nodes=rejected_nodes,
+        rejected_relationships=rejected_rels,
+    )
+
+
+def _rejection_reason(
+    rel: ExtractedRelationship,
+    node_labels: dict[str, str],
+    rel_constraints: dict[str, tuple[set[str], set[str]]],
+) -> RejectionReason | None:
+    """Return why the schema rejects this relationship, or None if it admits it.
+
+    Checks run in order and the first failure wins: an undeclared type is
+    reported as such even when its endpoints are also unresolvable.
+    """
+    if rel.type not in rel_constraints:
+        return RejectionReason.UNDECLARED_RELATIONSHIP_TYPE
+    if rel.source_id not in node_labels or rel.target_id not in node_labels:
+        return RejectionReason.DANGLING_ENDPOINT
+    source_types, target_types = rel_constraints[rel.type]
+    if (
+        node_labels[rel.source_id] not in source_types
+        or node_labels[rel.target_id] not in target_types
+    ):
+        return RejectionReason.ENDPOINT_TYPE_VIOLATION
+    return None
+
+
+def _log_rejections(chunk_id: str, admission: SchemaAdmission) -> None:
+    """Report what a chunk's emissions failed on — names, not just counts."""
+    if not admission.rejected_nodes and not admission.rejected_relationships:
+        return
+    logger.info(
+        "Chunk %s: schema did not admit %d node(s) %s and %d relationship(s) %s",
+        chunk_id,
+        len(admission.rejected_nodes),
+        sorted({r.node.label for r in admission.rejected_nodes}),
+        len(admission.rejected_relationships),
+        sorted({r.relationship.type for r in admission.rejected_relationships}),
+    )
 
 
 class DefaultPromptBuilder:
@@ -119,6 +182,8 @@ class LLMExtractionEngine:
         all_nodes: list[ExtractedNode] = []
         all_rels: list[ExtractedRelationship] = []
         all_provenance: list[ProvenanceLink] = []
+        all_rejected_nodes: list[RejectedNode] = []
+        all_rejected_rels: list[RejectedRelationship] = []
         malformed_chunk_extractions = 0
 
         system_prompt = self._prompt_builder.build_system_prompt(schema)
@@ -134,15 +199,17 @@ class LLMExtractionEngine:
                 malformed_chunk_extractions += 1
                 continue
 
-            nodes, rels = self._validate(nodes, rels, schema)
+            admission = self._validate(nodes, rels, schema, chunk.id)
+            _log_rejections(chunk.id, admission)
 
-            for node in nodes:
-                all_provenance.append(
-                    ProvenanceLink(chunk_id=chunk.id, node_id=node.id, confidence=1.0)
-                )
-
-            all_nodes.extend(nodes)
-            all_rels.extend(rels)
+            all_provenance.extend(
+                ProvenanceLink(chunk_id=chunk.id, node_id=node.id, confidence=1.0)
+                for node in admission.nodes
+            )
+            all_nodes.extend(admission.nodes)
+            all_rels.extend(admission.relationships)
+            all_rejected_nodes.extend(admission.rejected_nodes)
+            all_rejected_rels.extend(admission.rejected_relationships)
 
         quality_signals = (
             {"malformed_chunk_extractions": malformed_chunk_extractions}
@@ -154,6 +221,8 @@ class LLMExtractionEngine:
             nodes=all_nodes,
             relationships=all_rels,
             provenance=all_provenance,
+            rejected_nodes=all_rejected_nodes,
+            rejected_relationships=all_rejected_rels,
             quality_signals=quality_signals,
         )
 
@@ -173,5 +242,6 @@ class LLMExtractionEngine:
         nodes: list[ExtractedNode],
         rels: list[ExtractedRelationship],
         schema: OntologySchema,
-    ) -> tuple[list[ExtractedNode], list[ExtractedRelationship]]:
-        return validate_extraction(nodes, rels, schema)
+        chunk_id: str | None = None,
+    ) -> SchemaAdmission:
+        return validate_extraction(nodes, rels, schema, chunk_id)
