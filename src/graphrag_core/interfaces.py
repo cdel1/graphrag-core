@@ -174,6 +174,16 @@ class GraphStore(Protocol):
         """
         ...
 
+    async def close(self) -> None:
+        """Release backend resources (connections, drivers, sessions).
+
+        Contract: idempotent — a second close() is a legal no-op. No-op
+        for stores that hold no external resources (ephemeral stores).
+        After close() returns, further method calls are backend-defined;
+        callers must not rely on the store remaining usable.
+        """
+        ...
+
 
 @runtime_checkable
 class CommunityDetector(Protocol):

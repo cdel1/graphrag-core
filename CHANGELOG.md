@@ -9,10 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### BREAKING
 
 - **`validate_extraction()` returns a `SchemaAdmission`, not a `(nodes, relationships)` tuple.** The new object carries the admitted nodes and relationships under the same names, plus `rejected_nodes` / `rejected_relationships`. Callers unpacking the tuple migrate to `admission.nodes` / `admission.relationships`. It also takes an optional `chunk_id`, recorded on every rejection it produces.
+- **`GraphStore` declares `close()`.** The Protocol now requires `async close() -> None`: release backend resources; idempotent (re-close is a legal no-op); a no-op where the store holds no external resources. Both bundled backends conform (`Neo4jGraphStore` already closed its driver; `InMemoryGraphStore` gains the no-op), and the contract suite pins it. Third-party implementations must add the method — under `@runtime_checkable`, `isinstance(store, GraphStore)` now requires it. Motivation: downstream consumers were already calling `await store.close()` at `GraphStore`-typed sites the Protocol could not check (tessera#569).
 - **`DocumentMetadata.quarter` removed** (deprecated since v0.6.0, originally slated for removal at v0.7.0; the canonical field is `period`). The ingest-time `quarter → period` fallback in `IngestionPipeline` is removed with it. Callers still passing `quarter` must migrate to `period`: the model now ignores the unknown `quarter` key, so a legacy `quarter` value no longer reaches the persisted `:Document` node's `period` property.
 
 ### Changed
 
+- **`eval.protocols.Manifest` declares its members as read-only properties instead of plain attributes.** Typing-shape only, no runtime change (`runtime_checkable` still checks attribute presence): plain Protocol attributes demand settability, which structurally rejected frozen/immutable manifest implementations — e.g. a frozen Pydantic model — that the harness, a pure reader, accepts by design (tessera#569).
 - **Behavior change: `Neo4jGraphStore.list_relationships` no longer returns provenance (`FROM_CHUNK`) links.** `count_relationships` already excluded them; the same exclusion now applies to `list_relationships` and to untyped `get_related` traversal, making the backend self-consistent. Provenance recorded via `record_provenance` is a **lineage channel**, read exclusively through `get_provenance` — never visible on the relationship surface; how a backend represents lineage internally is unspecified (ADR-0055). `InMemoryGraphStore` already conformed (no change).
 
 ### Added

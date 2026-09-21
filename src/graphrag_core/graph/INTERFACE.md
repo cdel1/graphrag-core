@@ -30,6 +30,10 @@ async def validate_schema(self) -> list[SchemaViolation]: ...
 async def list_nodes(self) -> list[GraphNode]: ...
 async def count_relationships(self) -> int: ...
 async def list_relationships(self) -> list[GraphRelationship]: ...
+
+async def flush(self) -> None: ...
+async def clear(self) -> None: ...
+async def close(self) -> None: ...
 ```
 
 ### Contracts
@@ -40,6 +44,7 @@ async def list_relationships(self) -> list[GraphRelationship]: ...
 - **`get_provenance`** — Must return the full provenance chain reaching from the node through its chunks to their source documents. Emits ordered `ProvenanceStep`s with `level ∈ {"node", "chunk", "document"}`. **The `level="node"` step is always first. Ordering of `chunk` and `document` steps within the chain is implementation-defined and varies by backend; consumers must filter by `step.level`, not by position.** The `level="document"` step carries `DocumentMetadata` fields in `metadata` (`title`, `source`, `doc_type`, `date`, `period`, `sha256`). If the node has no provenance, returns a `ProvenanceTrail` with `provenance_chain=[]`, not `None`.
 - **`get_related`** — `depth=1` returns immediate neighbors. `depth=2` includes neighbors-of-neighbors. The caller pays for traversal cost — depth >3 is a code smell.
 - **`list_nodes` / `list_relationships`** — May be expensive on large graphs. Used by Tier 2 computations (community detection, divergence detection). Implementations should stream or paginate if backing store supports it; current Protocol returns full list — callers must accept O(n) memory.
+- **`close()`** — Releases backend resources (connections, drivers, sessions). Idempotent: a second `close()` is a legal no-op. No-op for stores that hold no external resources (ephemeral stores). After `close()` returns, further method calls are backend-defined — callers must not rely on the store remaining usable.
 - **Property-value round-trip** — Node/relationship `properties` accept arbitrary JSON-serializable values, including **nested** structures (dicts, lists of dicts). Implementations must round-trip these unchanged on read, regardless of the backing store's native type constraints. Backends whose property values are restricted to primitives + arrays-of-primitives (e.g. Neo4j) MUST transparently serialize non-primitive values on write and deserialize on read so the read matches what was written (the bundled `Neo4jGraphStore` does this via a reserved sentinel-prefixed JSON encoding — see `_serialization.py`). Reserved caveat: a genuine string value beginning with that sentinel prefix is the one shape not guaranteed to survive untouched; callers should not author property strings beginning with control/sentinel prefixes.
 
 ### Lexical-graph contract
@@ -115,6 +120,7 @@ class TestMyStore(GraphStoreContractTests):
 4. **Audit-trail-reaches-document** — `get_provenance` yields a `level="document"` step (ADR-0001).
 5. **`flush()` semantics** — a documented no-op is conformant (ADR-0033).
 6. **Provenance is a lineage channel** — `record_provenance` changes neither `list_relationships()` nor `count_relationships()`, and `get_related()` does not reach the chunk; `get_provenance` returns the trail (ADR-0055).
+7. **`close()` semantics** — legal after writes and idempotent; a documented no-op is conformant.
 
 **Capability-gated (opt in via a subclass class-attribute):**
 
