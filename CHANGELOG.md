@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### BREAKING
 
 - **`validate_extraction()` returns a `SchemaAdmission`, not a `(nodes, relationships)` tuple.** The new object carries the admitted nodes and relationships under the same names, plus `rejected_nodes` / `rejected_relationships`. Callers unpacking the tuple migrate to `admission.nodes` / `admission.relationships`. It also takes an optional `chunk_id`, recorded on every rejection it produces.
+- **`GraphStore` declares `close()`.** The Protocol now requires `async close() -> None`: release backend resources; idempotent (re-close is a legal no-op); a no-op where the store holds no external resources. Both bundled backends conform (`Neo4jGraphStore` already closed its driver; `InMemoryGraphStore` gains the no-op), and the contract suite pins it. Third-party implementations must add the method — under `@runtime_checkable`, `isinstance(store, GraphStore)` now requires it. Motivation: downstream consumers were already calling `await store.close()` at `GraphStore`-typed sites the Protocol could not check (tessera#569).
 - **`DocumentMetadata.quarter` removed** (deprecated since v0.6.0, originally slated for removal at v0.7.0; the canonical field is `period`). The ingest-time `quarter → period` fallback in `IngestionPipeline` is removed with it. Callers still passing `quarter` must migrate to `period`: the model now ignores the unknown `quarter` key, so a legacy `quarter` value no longer reaches the persisted `:Document` node's `period` property.
 
 ### Changed

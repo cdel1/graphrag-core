@@ -181,6 +181,13 @@ class GraphStoreContractTests:
         assert await store.get_node("a") is not None
         await store.flush()  # retry is legal (ADR-0033)
 
+    async def test_close_is_legal_and_idempotent(self) -> None:
+        store = await self._store()
+        await store.merge_node(_node("a"), "run-1")
+        await store.flush()
+        assert await store.close() is None
+        await store.close()  # re-close is a legal no-op
+
     # -- gated: persists_across_instances ----------------------------------
 
     async def test_lifecycle_round_trip(self) -> None:

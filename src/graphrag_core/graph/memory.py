@@ -123,6 +123,10 @@ class InMemoryGraphStore:
         self._chunk_to_doc.clear()
         self._schema = None
 
+    async def close(self) -> None:
+        # Ephemeral store: no external resources to release.
+        return None
+
     async def validate_schema(self) -> list[SchemaViolation]:
         if self._schema is None:
             return []
