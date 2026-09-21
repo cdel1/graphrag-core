@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.16.0] — 2026-09-21
+
+Three breaking contract changes land together: rejected extractions survive admission, `GraphStore` gains the `close()` lifecycle boundary, and the long-deprecated `quarter` field is gone.
 
 ### BREAKING
 
