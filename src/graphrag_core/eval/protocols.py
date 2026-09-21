@@ -22,10 +22,20 @@ from graphrag_core.eval.models import (
 
 @runtime_checkable
 class Manifest(Protocol):
-    version: str
-    slice_axes: list[str]
-    token_budget: int
-    model_pin: dict[str, Any]
+    # Read-only properties, not plain attributes: the harness only reads a
+    # manifest, and plain Protocol attributes demand settability — which
+    # rejects frozen/immutable implementations (e.g. a frozen Pydantic model).
+    @property
+    def version(self) -> str: ...
+
+    @property
+    def slice_axes(self) -> list[str]: ...
+
+    @property
+    def token_budget(self) -> int: ...
+
+    @property
+    def model_pin(self) -> dict[str, Any]: ...
 
 
 @runtime_checkable

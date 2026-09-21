@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **`eval.protocols.Manifest` declares its members as read-only properties instead of plain attributes.** Typing-shape only, no runtime change (`runtime_checkable` still checks attribute presence): plain Protocol attributes demand settability, which structurally rejected frozen/immutable manifest implementations — e.g. a frozen Pydantic model — that the harness, a pure reader, accepts by design (tessera#569).
 - **Behavior change: `Neo4jGraphStore.list_relationships` no longer returns provenance (`FROM_CHUNK`) links.** `count_relationships` already excluded them; the same exclusion now applies to `list_relationships` and to untyped `get_related` traversal, making the backend self-consistent. Provenance recorded via `record_provenance` is a **lineage channel**, read exclusively through `get_provenance` — never visible on the relationship surface; how a backend represents lineage internally is unspecified (ADR-0055). `InMemoryGraphStore` already conformed (no change).
 
 ### Added
