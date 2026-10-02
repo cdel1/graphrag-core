@@ -56,13 +56,15 @@ def test_no_test_module_reads_the_cli_s_neo4j_uri():
 # Modules that name a Neo4j client but never open a connection with it, so they
 # cannot reach a database and need no nomination. Anything else must go through
 # the helper.
+#
+# Kept to the modules that hold *no* nominated construction at all. A module
+# with both — `test_graph/test_neo4j.py` has a nominated fixture beside a bare
+# `Neo4jGraphStore()` for an `isinstance` check — stays off this list, because
+# exempting it would also exempt the next un-nominated fixture added there. The
+# check is module-granular, so an entry here is a blanket pass.
 NON_CONNECTING = {
     # Asserts the ImportError when the driver is absent — construction raises.
     "test_packaging.py",
-    # `Neo4jGraphStore()` for an `isinstance(store, GraphStore)` check. Routing
-    # it through the helper would make a pure structural assertion need a
-    # running container.
-    "test_graph/test_neo4j.py",
 }
 
 
@@ -75,16 +77,14 @@ def test_every_module_that_opens_a_neo4j_goes_through_the_nomination_helper():
     it safe. Both clients default to `bolt://localhost:7687`, which is what made
     the dev container reachable from a plain `pytest tests/` in the first place.
     """
-    offenders = [
-        rel
-        for path in TESTS_DIR.rglob("*.py")
-        if (rel := path.relative_to(TESTS_DIR).as_posix()) not in NON_CONNECTING
-        and rel != Path(__file__).name
-        and any(
-            client in (text := path.read_text(encoding="utf-8"))
-            for client in ("Neo4jGraphStore(", "Neo4jHybridSearch(")
-        )
-        and "nominated_neo4j" not in text
-    ]
+    offenders = []
+    for path in TESTS_DIR.rglob("*.py"):
+        rel = path.relative_to(TESTS_DIR).as_posix()
+        if rel in NON_CONNECTING or rel == Path(__file__).name:
+            continue
+        text = path.read_text(encoding="utf-8")
+        constructs = "Neo4jGraphStore(" in text or "Neo4jHybridSearch(" in text
+        if constructs and "nominated_neo4j" not in text:
+            offenders.append(rel)
 
     assert offenders == []

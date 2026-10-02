@@ -160,19 +160,8 @@ async def test_ingest_creates_chunk_nodes_before_from_document_edges(monkeypatch
 # ---------------------------------------------------------------------------
 # Neo4j integration regression — the bug the v0.6.1 fix addresses
 
-from tests.conftest import nominated_neo4j
-
-
-@pytest.fixture
-async def neo4j_test_store():
-    from graphrag_core.graph.neo4j import Neo4jGraphStore
-
-    target = nominated_neo4j()
-    store = Neo4jGraphStore(uri=target.uri, auth=target.auth, database=target.database)
-    async with store._driver.session(database=target.database) as session:
-        await session.run("MATCH (n) DETACH DELETE n")
-    yield store
-    await store.close()
+# `neo4j_test_store` comes from tests/conftest.py — it resolves the nominated
+# throwaway and wipes it, so these tests cannot reach an un-nominated database.
 
 
 @pytest.mark.asyncio

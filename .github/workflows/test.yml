@@ -24,8 +24,13 @@ jobs:
       - name: Verify uv.lock is in sync with pyproject
         run: uv lock --check
 
+      # -rs prints the skip reasons. `uv sync --all-extras` above installs the
+      # neo4j driver, so the Neo4j tests no longer skip on an absent import —
+      # they skip on the deliberate gates (--run-integration, NEO4J_TEST_URI).
+      # Without -rs that is invisible, and a silently-skipped backend test is
+      # how a Neo4j-only defect ships (tessera#586).
       - name: Run unit tests
-        run: uv run pytest tests/ -x -q
+        run: uv run pytest tests/ -x -q -rs
 
       - name: Boundary check — no domain leakage
         run: |
