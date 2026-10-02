@@ -3,8 +3,48 @@
 from __future__ import annotations
 
 import os
+from typing import NamedTuple
 
 import pytest
+
+NEO4J_TEST_URI_VAR = "NEO4J_TEST_URI"
+
+_NOT_NOMINATED = (
+    f"{NEO4J_TEST_URI_VAR} is not set. Every Neo4j fixture here wipes the database it "
+    "connects to, so it only runs against an instance you nominated as disposable:\n"
+    "  docker run --rm -d -p 7690:7687 -e NEO4J_AUTH=neo4j/development neo4j:5.15-community\n"
+    f"  export {NEO4J_TEST_URI_VAR}=bolt://localhost:7690\n"
+    "NEO4J_URI is deliberately not consulted — it points at real data."
+)
+
+
+class Neo4jTestTarget(NamedTuple):
+    """Connection details for a Neo4j the invocation nominated as disposable."""
+
+    uri: str
+    auth: tuple[str, str]
+    database: str
+
+
+def nominated_neo4j() -> Neo4jTestTarget:
+    """The nominated throwaway Neo4j, or skip the test.
+
+    `NEO4J_TEST_URI` has no default on purpose (tessera#586): the safe outcome
+    comes from the absence of configuration, not from a guess about whether the
+    database on the other end holds anything worth keeping. Getting it wrong
+    costs a visible skip; the previous default cost a developer their dev graph.
+    """
+    uri = os.environ.get(NEO4J_TEST_URI_VAR)
+    if not uri:
+        pytest.skip(_NOT_NOMINATED)
+    return Neo4jTestTarget(
+        uri=uri,
+        auth=(
+            os.environ.get("NEO4J_TEST_USER", "neo4j"),
+            os.environ.get("NEO4J_TEST_PASSWORD", "development"),
+        ),
+        database=os.environ.get("NEO4J_TEST_DATABASE", "neo4j"),
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

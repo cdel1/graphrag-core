@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from graphrag_core.models import GraphNode
+from tests.conftest import nominated_neo4j
 
 pytestmark = pytest.mark.integration
-
-NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
 
 @pytest.fixture
@@ -18,15 +15,18 @@ async def search_engine():
     from graphrag_core.graph.neo4j import Neo4jGraphStore
     from graphrag_core.search.neo4j import Neo4jHybridSearch
 
-    store = Neo4jGraphStore(database=NEO4J_TEST_DB)
+    target = nominated_neo4j()
+    store = Neo4jGraphStore(uri=target.uri, auth=target.auth, database=target.database)
     engine = Neo4jHybridSearch(
-        database=NEO4J_TEST_DB,
+        uri=target.uri,
+        auth=target.auth,
+        database=target.database,
         vector_index_name="test_vector_idx",
         fulltext_index_name="test_fulltext_idx",
     )
 
-    # Wipe database
-    async with store._driver.session(database=NEO4J_TEST_DB) as session:
+    # Wipe the nominated test database
+    async with store._driver.session(database=target.database) as session:
         await session.run("MATCH (n) DETACH DELETE n")
         try:
             await session.run("DROP INDEX test_vector_idx IF EXISTS")
@@ -49,7 +49,7 @@ async def search_engine():
     )
 
     # Add embeddings directly to nodes
-    async with store._driver.session(database=NEO4J_TEST_DB) as session:
+    async with store._driver.session(database=target.database) as session:
         await session.run(
             "MATCH (n {id: 'n1'}) SET n.embedding = $emb",
             emb=[1.0, 0.0, 0.0],

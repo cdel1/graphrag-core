@@ -176,17 +176,16 @@ async def test_memory_audit_trail_deduplicates_document_step():
 # Neo4j integration tests — skipped unless --run-integration is passed
 # ---------------------------------------------------------------------------
 
-import os as _os
-
-_NEO4J_TEST_DB = _os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
+from tests.conftest import nominated_neo4j
 
 
 @pytest.fixture
 async def neo4j_test_store():
     from graphrag_core.graph.neo4j import Neo4jGraphStore
 
-    store = Neo4jGraphStore(database=_NEO4J_TEST_DB)
-    async with store._driver.session(database=_NEO4J_TEST_DB) as session:
+    target = nominated_neo4j()
+    store = Neo4jGraphStore(uri=target.uri, auth=target.auth, database=target.database)
+    async with store._driver.session(database=target.database) as session:
         await session.run("MATCH (n) DETACH DELETE n")
     yield store
     await store.close()
