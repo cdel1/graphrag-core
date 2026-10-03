@@ -97,11 +97,30 @@ Per the agentic-substrate doctrine: agents are external (Claude Code, MCP client
 
 ## Commands
 ```bash
-pytest tests/ -x -q                    # tests (fail fast)
+pytest tests/ -x -q                    # tests (fail fast; integration tests skip)
 pytest tests/ -x -q --cov             # with coverage
-docker compose up neo4j                # start Neo4j for integration tests
 python -m graphrag_core.graph.schema   # apply schema
 ```
+
+Integration tests need two things, both explicit: `--run-integration` (or
+`RUN_INTEGRATION=1`) to select them, and **`NEO4J_TEST_URI`** to say which
+database they may destroy. Every Neo4j fixture here opens by wiping the database
+it connects to, so `NEO4J_TEST_URI` has **no default** and an unset one skips
+with a reason — a shared dev instance on 7687 is unreachable from a test unless
+someone nominates it by hand:
+
+```bash
+docker run --rm -d -p 7690:7687 -e NEO4J_AUTH=neo4j/development neo4j:5.15-community
+export NEO4J_TEST_URI=bolt://localhost:7690
+RUN_INTEGRATION=1 pytest tests/ -q -rs
+```
+
+Pass `-rs` so a skip you did not intend is visible rather than silent. Auth and
+database default (`NEO4J_TEST_USER` / `NEO4J_TEST_PASSWORD` /
+`NEO4J_TEST_DATABASE`); only the URI must be nominated, because only it decides
+*which* data is at risk. Why it works this way — a plain `pytest tests/` in a
+consumer repo emptied a developer's dev graph, with no warning and no restore:
+[tessera#586](https://github.com/cdel1/tessera/issues/586).
 
 ## What Does NOT Belong Here
 - Employer-specific anything (deployment configs, client references, internal tooling)

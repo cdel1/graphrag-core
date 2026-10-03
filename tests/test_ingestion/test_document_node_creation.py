@@ -160,20 +160,8 @@ async def test_ingest_creates_chunk_nodes_before_from_document_edges(monkeypatch
 # ---------------------------------------------------------------------------
 # Neo4j integration regression — the bug the v0.6.1 fix addresses
 
-import os as _os
-
-_NEO4J_TEST_DB = _os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
-
-
-@pytest.fixture
-async def neo4j_test_store():
-    from graphrag_core.graph.neo4j import Neo4jGraphStore
-
-    store = Neo4jGraphStore(database=_NEO4J_TEST_DB)
-    async with store._driver.session(database=_NEO4J_TEST_DB) as session:
-        await session.run("MATCH (n) DETACH DELETE n")
-    yield store
-    await store.close()
+# `neo4j_test_store` comes from tests/conftest.py — it resolves the nominated
+# throwaway and wipes it, so these tests cannot reach an un-nominated database.
 
 
 @pytest.mark.asyncio
@@ -201,7 +189,7 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
     )
 
     # Document node exists with period
-    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+    async with neo4j_test_store._driver.session(database=neo4j_test_store._database) as session:
         result = await session.run(
             "MATCH (d:Document {id: $id}) RETURN d.period AS period, d.title AS title",
             id="doc:neo4j-smoke",
@@ -211,13 +199,13 @@ async def test_neo4j_ingest_creates_chunk_nodes_and_chunked_from(
     assert record["period"] == "2026-Q1"
 
     # Chunk nodes exist, count == chunks returned
-    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+    async with neo4j_test_store._driver.session(database=neo4j_test_store._database) as session:
         result = await session.run("MATCH (c:Chunk) RETURN count(c) AS n")
         n_chunks_in_graph = (await result.single())["n"]
     assert n_chunks_in_graph == len(chunks)
 
     # FROM_DOCUMENT edges link every chunk to the document
-    async with neo4j_test_store._driver.session(database=_NEO4J_TEST_DB) as session:
+    async with neo4j_test_store._driver.session(database=neo4j_test_store._database) as session:
         result = await session.run(
             "MATCH (c:Chunk)-[:FROM_DOCUMENT]->(d:Document {id: $id}) RETURN count(c) AS n",
             id="doc:neo4j-smoke",

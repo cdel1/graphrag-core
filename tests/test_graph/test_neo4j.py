@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
-
-NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
 
 from graphrag_core.exceptions import MissingEndpointError
 from graphrag_core.models import (
@@ -17,6 +13,7 @@ from graphrag_core.models import (
     PropertyDefinition,
     RelationshipTypeDefinition,
 )
+from tests.conftest import nominated_neo4j
 
 pytestmark = pytest.mark.integration
 
@@ -25,9 +22,10 @@ pytestmark = pytest.mark.integration
 async def store():
     from graphrag_core.graph.neo4j import Neo4jGraphStore
 
-    store = Neo4jGraphStore(database=NEO4J_TEST_DB)
-    # Wipe the test database before each test
-    async with store._driver.session(database=NEO4J_TEST_DB) as session:
+    target = nominated_neo4j()
+    store = Neo4jGraphStore(uri=target.uri, auth=target.auth, database=target.database)
+    # Wipe the nominated test database before each test
+    async with store._driver.session(database=target.database) as session:
         await session.run("MATCH (n) DETACH DELETE n")
     yield store
     await store.close()

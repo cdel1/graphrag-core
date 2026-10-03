@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from graphrag_core.graph.memory import InMemoryGraphStore
 from graphrag_core.interfaces import GraphStore
 from graphrag_core.testing.contracts.graph_store import GraphStoreContractTests
-
-NEO4J_TEST_DB = os.environ.get("NEO4J_TEST_DATABASE", "neo4j")
+from tests.conftest import nominated_neo4j
 
 
 class TestInMemoryGraphStoreContract(GraphStoreContractTests):
@@ -27,4 +24,5 @@ class TestNeo4jGraphStoreContract(GraphStoreContractTests):
     async def store_factory(self) -> GraphStore:
         from graphrag_core.graph.neo4j import Neo4jGraphStore
 
-        return Neo4jGraphStore(database=NEO4J_TEST_DB)
+        target = nominated_neo4j()
+        return Neo4jGraphStore(uri=target.uri, auth=target.auth, database=target.database)
