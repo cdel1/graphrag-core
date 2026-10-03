@@ -27,5 +27,10 @@ jobs:
       - run: uv sync --frozen
 
       - name: Run Tier 1 invariant tests + eval framework tests
-        # No LLM cost — Tier 1 checks operate on the produced graph only.
-        run: uv run pytest tests/eval/ -v
+        # No LLM cost, and now by construction rather than by accident: the two
+        # billable e2e tests carry `integration`, which conftest.py deselects
+        # unless --run-integration / RUN_INTEGRATION=1. Previously they were
+        # gated only on OPENAI_API_KEY being absent from this job — a missing
+        # credential standing in for a decision (tessera#586).
+        # -rs so a skip nobody intended is visible here.
+        run: uv run pytest tests/eval/ -v -rs

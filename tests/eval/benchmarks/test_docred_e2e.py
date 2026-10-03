@@ -14,6 +14,7 @@ def test_eval_list_includes_docred() -> None:
     assert "docred" in result.stdout
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("OPENAI_API_KEY"),
     reason="DocRED pair invokes the OpenAI LLM; set OPENAI_API_KEY to run.",
