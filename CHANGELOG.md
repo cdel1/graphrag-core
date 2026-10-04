@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.17.0] — 2026-10-04
+
+One additive change: a fifth rejection reason for consumers that check `required_properties` themselves.
 
 ### Added
 
