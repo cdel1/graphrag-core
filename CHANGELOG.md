@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **`RejectionReason.MISSING_REQUIRED_PROPERTY`.** A strategy that owns its own dispatch and checks a node against `NodeTypeDefinition.required_properties` can now hand the failure back typed, instead of dropping it. `validate_extraction` does not produce it: admission still gates on labels and endpoints only, and a test pins that. Per [ADR-0054 D2](https://github.com/cdel1/tessera/blob/main/docs/adr/0054-ontology-activation-contracts.md).
+
 ## [0.16.0] — 2026-09-21
 
 Three breaking contract changes land together: rejected extractions survive admission, `GraphStore` gains the `close()` lifecycle boundary, and the long-deprecated `quarter` field is gone.

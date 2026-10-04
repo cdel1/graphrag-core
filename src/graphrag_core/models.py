@@ -109,12 +109,18 @@ class RejectionReason(str, Enum):
     A consumer deciding severity needs the cause, not a bare list: an
     undeclared label is a different signal from an edge whose endpoints are
     the right types in the wrong order.
+
+    `MISSING_REQUIRED_PROPERTY` is never produced by `validate_extraction`,
+    which gates on labels and endpoints only. It is for a consumer that checks
+    an emission against `NodeTypeDefinition.required_properties` itself and
+    hands back what fails, rather than dropping it.
     """
 
     UNDECLARED_NODE_LABEL = "undeclared_node_label"
     UNDECLARED_RELATIONSHIP_TYPE = "undeclared_relationship_type"
     DANGLING_ENDPOINT = "dangling_endpoint"
     ENDPOINT_TYPE_VIOLATION = "endpoint_type_violation"
+    MISSING_REQUIRED_PROPERTY = "missing_required_property"
 
 
 class RejectedNode(BaseModel):

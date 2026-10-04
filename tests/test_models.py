@@ -404,3 +404,35 @@ class TestRejectedEmissions:
 
         assert rejected.model_dump(mode="json")["reason"] == "undeclared_node_label"
         assert rejected.chunk_id is None
+
+    def test_missing_required_property_is_a_reason_a_consumer_can_hand_back(self):
+        """For an admission check against `NodeTypeDefinition.required_properties`
+        made outside the engine — `validate_extraction` does not make it."""
+        from graphrag_core.models import RejectedNode, RejectionReason
+
+        rejected = RejectedNode(
+            node=ExtractedNode(id="n1", label="Entity", properties={"name": "Hall 3"}),
+            reason=RejectionReason.MISSING_REQUIRED_PROPERTY,
+            chunk_id="chunk-0",
+        )
+
+        assert rejected.model_dump(mode="json")["reason"] == "missing_required_property"
+
+    def test_validate_extraction_does_not_enforce_required_properties(self):
+        """Pinned so adding the reason is not mistaken for adding the check:
+        admission still gates on labels only."""
+        from graphrag_core.extraction.engine import validate_extraction
+        from graphrag_core.models import NodeTypeDefinition, OntologySchema
+
+        schema = OntologySchema(
+            node_types=[NodeTypeDefinition(
+                label="Entity", properties=[], required_properties=["kind"],
+            )],
+            relationship_types=[],
+        )
+        node = ExtractedNode(id="n1", label="Entity", properties={"name": "Hall 3"})
+
+        admission = validate_extraction([node], [], schema)
+
+        assert admission.nodes == [node]
+        assert admission.rejected_nodes == []

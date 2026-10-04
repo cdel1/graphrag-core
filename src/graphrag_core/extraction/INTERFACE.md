@@ -67,6 +67,7 @@ A rejection preserves the emission verbatim — properties included, which is wh
 | `undeclared_relationship_type` | the relationship's type is not in `schema.relationship_types` |
 | `dangling_endpoint` | an endpoint id is not an admitted node (including one rejected for its label) |
 | `endpoint_type_violation` | endpoint labels violate the type's `source_types` / `target_types` |
+| `missing_required_property` | never raised by the engine — `validate_extraction` does not check `required_properties`. A consumer that checks a node against its type's `required_properties` hands the failure back with this reason |
 
 Checks run in that order per relationship and the first failure wins. Consumers decide severity — the engine's job is to report the cause, never to make the emission unreconstructable. A run that rejects everything is a misconfiguration signal, not an empty run.
 
