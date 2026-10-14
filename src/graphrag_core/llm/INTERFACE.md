@@ -3,7 +3,7 @@
 **Protocol:** `LLMClient`
 **Source:** [`graphrag_core/interfaces.py`](../interfaces.py) lines 72–90
 **Default implementations:** [`anthropic.py`](anthropic.py), [`openai.py`](openai.py), [`base.py`](base.py)
-**Vocabulary:** `LLMClient` (provider-agnostic Protocol), reference implementation (per-provider class exercised by the contract suite), tuned-default provider (the single provider whose prompts + model defaults receive active tuning attention at a given time), env-var-selected factory (`graphrag_core.llm.from_env()` reading `GRAPHRAG_LLM_PROVIDER`).
+**Vocabulary:** `LLMClient` (provider-agnostic Protocol), reference implementation (per-provider class exercised by the contract suite), tuned-default provider (the single provider whose prompts + model defaults receive active tuning attention at a given time), env-var-selected factory (`graphrag_core.llm.from_env()` reading `GRAPHRAG_LLM_PROVIDER` and `GRAPHRAG_LLM_MODEL`).
 
 ---
 
@@ -40,6 +40,7 @@ async def complete_json(
   - Validate the response against `schema` client-side regardless of provider claims.
   - Raise on validation failure — never return a partial / loosely-typed object.
 - **`temperature=0.0` is the documented default** for graphrag-core's extraction path. Callers may override but should justify.
+- **A model that refuses `temperature` is sent none.** Some models reject the parameter outright (400 `` `temperature` is deprecated for this model``, e.g. `claude-sonnet-5-5`). The reference impls retry that call once without `temperature`, log a warning, and omit it for the rest of the client's life; the model then runs at its own default, so the 0.0 above holds only where the model accepts it. Any other 4xx propagates unchanged.
 - **`max_tokens`** is the output cap, not the prompt cap. Implementations should not silently truncate; if `max_tokens` is exceeded the response is whatever the provider returned at the cutoff.
 - **`messages` format follows the OpenAI convention** (`[{"role": "user", "content": "..."}, ...]`). Implementations adapt to provider-specific shapes internally.
 
@@ -61,10 +62,10 @@ graphrag-core specifically uses `strict: False` in the OpenAI client because the
 
 ### Reference impls
 
-- `AnthropicLLMClient` — uses Anthropic's tool-use loop for structured output.
+- `AnthropicLLMClient` — uses Anthropic's tool-use loop for structured output, forcing the `extract` tool via `tool_choice`. A model that refuses a forced `tool_choice` (400 `` tool_choice: type "tool" and "any" are not supported``, e.g. `claude-sonnet-5-5`) gets the call retried with `tool_choice: auto` plus a system instruction to call the tool, remembered for the client's life. An answer that still carries no tool call raises `ValidationError`.
 - `OpenAILLMClient` — uses `response_format={"type": "json_schema"}` when `complete_json` is called.
 
-Both implement the Protocol identically from the caller's perspective. Consumers select a provider via the factory `graphrag_core.llm.from_env()`, which reads the `GRAPHRAG_LLM_PROVIDER` env var (`anthropic` (default) or `openai`). Consumers needing per-call provider override or mixed providers instantiate the concrete client directly.
+Both implement the Protocol identically from the caller's perspective. Consumers select a provider via the factory `graphrag_core.llm.from_env()`, which reads the `GRAPHRAG_LLM_PROVIDER` env var (`anthropic` (default) or `openai`) and the optional `GRAPHRAG_LLM_MODEL`. Consumers needing per-call provider override or mixed providers instantiate the concrete client directly.
 
 The factory's default reflects the framework's currently *tuned-default provider* (Anthropic as of v0.11). The non-tuned reference impl remains Protocol-compliant and exercised by the contract suite; its prompt-quality and eval baselines are not actively maintained.
 
@@ -81,6 +82,7 @@ llm = from_env()  # AnthropicLLMClient by default
 `from_env()` reads:
 
 - `GRAPHRAG_LLM_PROVIDER`: `"anthropic"` (default) or `"openai"`. Case-insensitive. Unknown values raise `ValueError`.
+- `GRAPHRAG_LLM_MODEL`: model name passed to the chosen client. Unset keeps the provider's default (`claude-sonnet-4-6` / `gpt-4o`).
 - Provider-specific API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) are read by the provider SDK itself; the factory does not validate them.
 
 To add a new provider's factory branch, edit `graphrag_core/llm/factory.py`. The factory deliberately stays minimal — no DI framework, no plugin discovery, no per-call provider override. Consumers needing more bypass it.
@@ -118,4 +120,5 @@ class MyProviderLLMClient:
 - `complete_json`: returns validated model instance.
 - `complete_json`: malformed provider output → `ValidationError`.
 - Temperature `0.0` is the documented default.
+- A model that refuses `temperature` gets the call retried without it; other 4xx propagate.
 - Mock provider: same input twice → same output (within provider determinism).

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+Both reference LLM clients can now run models that refuse `temperature` or a forced `tool_choice`, and the factory can pick the model.
+
+### Added
+
+- **`GRAPHRAG_LLM_MODEL`.** `from_env()` passes it to the chosen client as the model name. Unset keeps the provider default (`claude-sonnet-4-6` / `gpt-4o`).
+
+### Fixed
+
+- **A model that refuses `temperature` no longer fails every call.** `claude-sonnet-5-5` returns 400 `` `temperature` is deprecated for this model`` on any request carrying the parameter, so no stage could run on it. `AnthropicLLMClient` and `OpenAILLMClient` now retry that call once without `temperature`, log a warning, and omit it for the rest of the client's life. The model then runs at its own default; `temperature=0.0` still holds wherever the model accepts it. Any other 400 propagates as before (tessera#664).
+- **`AnthropicLLMClient.complete_json` runs on models that refuse a forced `tool_choice`.** `claude-sonnet-5-5` also returns 400 `` tool_choice: type "tool" and "any" are not supported for this model``. The client now retries with `tool_choice: auto` and a system instruction to call the `extract` tool, and keeps that for the rest of its life. A response with no tool call now raises `ValidationError` (counted as a malformed chunk by `LLMExtractionEngine`) instead of leaking `StopIteration` (tessera#664).
+
 ## [0.17.0] — 2026-10-04
 
 One additive change: a fifth rejection reason for consumers that check `required_properties` themselves.

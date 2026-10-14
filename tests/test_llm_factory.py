@@ -77,3 +77,34 @@ class TestPackageExport:
     def test_from_env_importable_from_package(self):
         """from graphrag_core.llm import from_env should work."""
         from graphrag_core.llm import from_env  # noqa: F401
+
+
+class TestFromEnvModel:
+    """GRAPHRAG_LLM_MODEL picks the model; unset keeps the provider default (tessera#664)."""
+
+    def test_model_env_sets_anthropic_model(self):
+        from graphrag_core.llm.factory import from_env
+
+        env = {"GRAPHRAG_LLM_PROVIDER": "anthropic", "GRAPHRAG_LLM_MODEL": "claude-sonnet-5-5"}
+        with patch.dict(os.environ, env):
+            with patch("graphrag_core.llm.anthropic.AsyncAnthropic"):
+                client = from_env()
+        assert client._model == "claude-sonnet-5-5"
+
+    def test_model_env_sets_openai_model(self):
+        from graphrag_core.llm.factory import from_env
+
+        env = {"GRAPHRAG_LLM_PROVIDER": "openai", "GRAPHRAG_LLM_MODEL": "gpt-4.1"}
+        with patch.dict(os.environ, env):
+            with patch("graphrag_core.llm.openai.AsyncOpenAI"):
+                client = from_env()
+        assert client._model == "gpt-4.1"
+
+    def test_unset_model_keeps_provider_default(self):
+        from graphrag_core.llm.factory import from_env
+
+        with patch.dict(os.environ, {"GRAPHRAG_LLM_PROVIDER": "anthropic"}):
+            os.environ.pop("GRAPHRAG_LLM_MODEL", None)
+            with patch("graphrag_core.llm.anthropic.AsyncAnthropic"):
+                client = from_env()
+        assert client._model == "claude-sonnet-4-6"
