@@ -88,7 +88,7 @@ class AnthropicLLMClient:
         if system is not None:
             kwargs["system"] = system
         response = await self._create(kwargs)
-        return response.content[0].text
+        return "".join(b.text for b in response.content if b.type == "text")
 
     async def complete_json(
         self,
