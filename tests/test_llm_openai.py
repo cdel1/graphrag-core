@@ -123,3 +123,90 @@ class TestOpenAILLMClient:
         with patch("graphrag_core.llm.openai.AsyncOpenAI"):
             client = OpenAILLMClient(api_key="test-key")
             assert isinstance(client, LLMClient)
+
+
+class ExtractModel(BaseModel):
+    name: str
+    count: int
+
+
+def _temperature_rejected():
+    import httpx
+    from openai import BadRequestError
+
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/chat/completions")
+    return BadRequestError(
+        "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
+        "'message': '`temperature` is deprecated for this model.'}}",
+        response=httpx.Response(400, request=request),
+        body=None,
+    )
+
+
+class TestOpenAITemperatureRejected:
+    """A model that refuses `temperature` gets the call retried without it (tessera#664)."""
+
+    def _response(self, content: str):
+        response = MagicMock()
+        response.choices = [MagicMock()]
+        response.choices[0].message.content = content
+        return response
+
+    @pytest.mark.asyncio
+    async def test_retries_without_temperature_and_remembers(self):
+        from graphrag_core.llm.openai import OpenAILLMClient
+
+        with patch("graphrag_core.llm.openai.AsyncOpenAI") as MockClient:
+            create = AsyncMock(side_effect=[
+                _temperature_rejected(), self._response("ok"), self._response("again"),
+            ])
+            MockClient.return_value.chat.completions.create = create
+
+            client = OpenAILLMClient(model="claude-sonnet-5-5", api_key="k")
+            first = await client.complete(messages=[{"role": "user", "content": "hi"}])
+            second = await client.complete(messages=[{"role": "user", "content": "hi"}])
+
+        assert (first, second) == ("ok", "again")
+        sent = [c.kwargs for c in create.call_args_list]
+        assert sent[0]["temperature"] == 0.0
+        assert "temperature" not in sent[1]
+        assert "temperature" not in sent[2]
+
+    @pytest.mark.asyncio
+    async def test_complete_json_retries_without_temperature(self):
+        from graphrag_core.llm.openai import OpenAILLMClient
+
+        with patch("graphrag_core.llm.openai.AsyncOpenAI") as MockClient:
+            create = AsyncMock(side_effect=[
+                _temperature_rejected(), self._response('{"name": "x", "count": 1}'),
+            ])
+            MockClient.return_value.chat.completions.create = create
+
+            client = OpenAILLMClient(api_key="k")
+            result = await client.complete_json(
+                messages=[{"role": "user", "content": "x"}], schema=ExtractModel,
+            )
+
+        assert result == ExtractModel(name="x", count=1)
+        assert "temperature" not in create.call_args_list[1].kwargs
+
+    @pytest.mark.asyncio
+    async def test_other_bad_request_propagates_without_retry(self):
+        import httpx
+        from openai import BadRequestError
+
+        from graphrag_core.llm.openai import OpenAILLMClient
+
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        other = BadRequestError(
+            "max_tokens: too large", response=httpx.Response(400, request=request), body=None,
+        )
+        with patch("graphrag_core.llm.openai.AsyncOpenAI") as MockClient:
+            create = AsyncMock(side_effect=other)
+            MockClient.return_value.chat.completions.create = create
+
+            client = OpenAILLMClient(api_key="k")
+            with pytest.raises(BadRequestError):
+                await client.complete(messages=[{"role": "user", "content": "hi"}])
+
+        assert create.call_count == 1

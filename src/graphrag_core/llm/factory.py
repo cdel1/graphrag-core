@@ -18,6 +18,8 @@ def from_env() -> BaseLLMClient:
     Reads:
         GRAPHRAG_LLM_PROVIDER: ``"anthropic"`` (default) or ``"openai"``.
             Case-insensitive. Unknown values raise ``ValueError``.
+        GRAPHRAG_LLM_MODEL: model name passed to the client. Unset keeps
+            the provider's default model.
 
     API-key validation is not the factory's responsibility; missing or
     invalid keys propagate as the provider SDK's exception at the first
@@ -35,14 +37,16 @@ def from_env() -> BaseLLMClient:
             ``pip install 'graphrag-core[openai]'``.
     """
     provider = os.environ.get("GRAPHRAG_LLM_PROVIDER", "anthropic").lower()
+    model = os.environ.get("GRAPHRAG_LLM_MODEL")
+    kwargs = {"model": model} if model else {}
     if provider == "anthropic":
         from graphrag_core.llm.anthropic import AnthropicLLMClient
 
-        return AnthropicLLMClient()
+        return AnthropicLLMClient(**kwargs)
     if provider == "openai":
         from graphrag_core.llm.openai import OpenAILLMClient
 
-        return OpenAILLMClient()
+        return OpenAILLMClient(**kwargs)
     raise ValueError(
         f"Unknown GRAPHRAG_LLM_PROVIDER value: {provider!r}. "
         f"Supported: 'anthropic', 'openai'."
