@@ -106,6 +106,7 @@ class TestAnthropicTemperatureRejected:
 
     def _text_response(self, text: str):
         block = MagicMock()
+        block.type = "text"
         block.text = text
         response = MagicMock()
         response.content = [block]
@@ -285,6 +286,7 @@ class TestAnthropicConcurrentRefusals:
         from graphrag_core.llm.anthropic import AnthropicLLMClient
 
         block = MagicMock()
+        block.type = "text"
         block.text = "ok"
         response = MagicMock()
         response.content = [block]
@@ -304,3 +306,46 @@ class TestAnthropicConcurrentRefusals:
             )
 
         assert results == ["ok", "ok"]
+
+
+class TestAnthropicCompleteSkipsNonTextBlocks:
+    """A model may put a `thinking` block before the answer (claude-sonnet-5-5; tessera#664)."""
+
+    @pytest.mark.asyncio
+    async def test_returns_the_text_after_a_thinking_block(self):
+        from graphrag_core.llm.anthropic import AnthropicLLMClient
+
+        thinking = MagicMock(spec=["type", "thinking", "signature"])
+        thinking.type = "thinking"
+        text = MagicMock()
+        text.type = "text"
+        text.text = "the answer"
+        response = MagicMock()
+        response.content = [thinking, text]
+
+        with patch("graphrag_core.llm.anthropic.AsyncAnthropic") as MockClient:
+            MockClient.return_value.messages.create = AsyncMock(return_value=response)
+            client = AnthropicLLMClient(api_key="k")
+            result = await client.complete(messages=[{"role": "user", "content": "q"}])
+
+        assert result == "the answer"
+
+    @pytest.mark.asyncio
+    async def test_joins_several_text_blocks(self):
+        from graphrag_core.llm.anthropic import AnthropicLLMClient
+
+        blocks = []
+        for part in ("first ", "second"):
+            block = MagicMock()
+            block.type = "text"
+            block.text = part
+            blocks.append(block)
+        response = MagicMock()
+        response.content = blocks
+
+        with patch("graphrag_core.llm.anthropic.AsyncAnthropic") as MockClient:
+            MockClient.return_value.messages.create = AsyncMock(return_value=response)
+            client = AnthropicLLMClient(api_key="k")
+            result = await client.complete(messages=[{"role": "user", "content": "q"}])
+
+        assert result == "first second"

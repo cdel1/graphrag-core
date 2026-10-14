@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- **`AnthropicLLMClient.complete` returns the answer when the model thinks first.** It returned `response.content[0].text`, but `claude-sonnet-5-5` puts a `thinking` block before the text on any non-trivial prompt, so every plain-text call raised `AttributeError: 'ThinkingBlock' object has no attribute 'text'`. It now joins the response's `text` blocks and skips the rest (tessera#664).
+
 ## [0.18.0] — 2026-10-14
 
 Both reference LLM clients can now run models that refuse `temperature` or a forced `tool_choice`, and the factory can pick the model.
