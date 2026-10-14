@@ -135,11 +135,12 @@ def _temperature_rejected():
     from openai import BadRequestError
 
     request = httpx.Request("POST", "https://api.anthropic.com/v1/chat/completions")
+    # body as the openai SDK surfaces Anthropic's OpenAI-compatible endpoint (2026-10-14)
+    body = {"code": "invalid_request_error", "message": "`temperature` is deprecated for this model.",
+            "type": "invalid_request_error", "param": None}
     return BadRequestError(
-        "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
-        "'message': '`temperature` is deprecated for this model.'}}",
-        response=httpx.Response(400, request=request),
-        body=None,
+        f"Error code: 400 - {{'error': {body}}}", response=httpx.Response(400, request=request),
+        body=body,
     )
 
 
@@ -210,3 +211,31 @@ class TestOpenAITemperatureRejected:
                 await client.complete(messages=[{"role": "user", "content": "hi"}])
 
         assert create.call_count == 1
+
+
+class TestOpenAIConcurrentRefusals:
+    @pytest.mark.asyncio
+    async def test_calls_in_flight_when_the_flag_flips_also_retry(self):
+        import asyncio
+
+        from graphrag_core.llm.openai import OpenAILLMClient
+
+        response = MagicMock()
+        response.choices = [MagicMock()]
+        response.choices[0].message.content = "ok"
+
+        async def create(**kwargs):
+            await asyncio.sleep(0)
+            if "temperature" in kwargs:
+                raise _temperature_rejected()
+            return response
+
+        with patch("graphrag_core.llm.openai.AsyncOpenAI") as MockClient:
+            MockClient.return_value.chat.completions.create = AsyncMock(side_effect=create)
+            client = OpenAILLMClient(model="claude-sonnet-5-5", api_key="k")
+            results = await asyncio.gather(
+                client.complete(messages=[{"role": "user", "content": "a"}]),
+                client.complete(messages=[{"role": "user", "content": "b"}]),
+            )
+
+        assert results == ["ok", "ok"]

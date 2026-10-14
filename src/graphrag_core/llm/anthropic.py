@@ -16,6 +16,13 @@ TOOL_CHOICE_REJECTED = 'tool_choice: type "tool" and "any" are not supported'
 MUST_CALL_TOOL = "Respond only by calling the `extract` tool, even when there is nothing to extract."
 
 
+def _error_message(exc: BadRequestError) -> str:
+    body = exc.body
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        return str(body["error"].get("message", ""))
+    return str(exc)
+
+
 class AnthropicLLMClient:
     """Thin wrapper around the Anthropic SDK implementing the LLMClient Protocol."""
 
@@ -32,7 +39,9 @@ class AnthropicLLMClient:
     async def _create(self, kwargs: dict):
         """Send the request, dropping each parameter the model refuses for this client's life.
 
-        Each refusal flips one flag, so a request is sent at most three times.
+        A refusal is only retried while the refused parameter is still in the request,
+        so a request is sent at most three times. Concurrent calls that were already
+        in flight when the flag flipped retry the same way.
         """
         while True:
             if not self._send_temperature:
@@ -43,17 +52,25 @@ class AnthropicLLMClient:
             try:
                 return await self._client.messages.create(**kwargs)
             except BadRequestError as exc:
-                if self._send_temperature and TEMPERATURE_REJECTED in str(exc):
-                    self._send_temperature = False
-                    refused = "`temperature`"
-                elif self._force_tool_choice and TOOL_CHOICE_REJECTED in str(exc):
-                    self._force_tool_choice = False
-                    refused = "a forced `tool_choice`"
+                message = _error_message(exc)
+                if TEMPERATURE_REJECTED in message and "temperature" in kwargs:
+                    if self._send_temperature:
+                        self._send_temperature = False
+                        self._warn_refused("`temperature`")
+                elif (
+                    TOOL_CHOICE_REJECTED in message
+                    and kwargs.get("tool_choice", {}).get("type") == "tool"
+                ):
+                    if self._force_tool_choice:
+                        self._force_tool_choice = False
+                        self._warn_refused("a forced `tool_choice`")
                 else:
                     raise
-            logger.warning(
-                "%s rejects %s; falling back for the rest of this client's life", self._model, refused,
-            )
+
+    def _warn_refused(self, refused: str) -> None:
+        logger.warning(
+            "%s rejects %s; falling back for the rest of this client's life", self._model, refused,
+        )
 
     async def complete(
         self,

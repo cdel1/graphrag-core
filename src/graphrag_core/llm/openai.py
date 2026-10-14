@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 TEMPERATURE_REJECTED = "`temperature` is deprecated"
 
 
+def _error_message(exc: BadRequestError) -> str:
+    body = exc.body
+    if isinstance(body, dict) and "message" in body:
+        return str(body["message"])
+    return str(exc)
+
+
 class OpenAILLMClient:
     """Thin wrapper around the OpenAI SDK implementing the LLMClient Protocol."""
 
@@ -34,12 +41,14 @@ class OpenAILLMClient:
         try:
             return await self._client.chat.completions.create(**kwargs)
         except BadRequestError as exc:
-            if TEMPERATURE_REJECTED not in str(exc):
+            if TEMPERATURE_REJECTED not in _error_message(exc):
                 raise
-        logger.warning(
-            "%s rejects `temperature`; falling back for the rest of this client's life", self._model,
-        )
-        self._send_temperature = False
+        if self._send_temperature:
+            self._send_temperature = False
+            logger.warning(
+                "%s rejects `temperature`; falling back for the rest of this client's life",
+                self._model,
+            )
         kwargs.pop("temperature")
         return await self._client.chat.completions.create(**kwargs)
 

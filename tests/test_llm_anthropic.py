@@ -93,11 +93,11 @@ def _temperature_rejected():
     from anthropic import BadRequestError
 
     request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    # body as returned by the live API for claude-sonnet-5-5 (2026-10-14)
+    body = {"type": "error", "error": {"type": "invalid_request_error",
+            "message": "`temperature` is deprecated for this model."}}
     return BadRequestError(
-        "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
-        "'message': '`temperature` is deprecated for this model.'}}",
-        response=httpx.Response(400, request=request),
-        body=None,
+        f"Error code: 400 - {body}", response=httpx.Response(400, request=request), body=body,
     )
 
 
@@ -183,11 +183,11 @@ def _tool_choice_rejected():
     from anthropic import BadRequestError
 
     request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    # body as returned by the live API for claude-sonnet-5-5 (2026-10-14)
+    body = {"type": "error", "error": {"type": "invalid_request_error",
+            "message": 'tool_choice: type "tool" and "any" are not supported for this model.'}}
     return BadRequestError(
-        "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
-        "'message': 'tool_choice: type \"tool\" and \"any\" are not supported for this model.'}}",
-        response=httpx.Response(400, request=request),
-        body=None,
+        f"Error code: 400 - {body}", response=httpx.Response(400, request=request), body=body,
     )
 
 
@@ -274,3 +274,33 @@ class TestAnthropicForcedToolChoiceRejected:
                 await client.complete_json(
                     messages=[{"role": "user", "content": "x"}], schema=ExtractModel,
                 )
+
+
+class TestAnthropicConcurrentRefusals:
+    @pytest.mark.asyncio
+    async def test_calls_in_flight_when_the_flag_flips_also_retry(self):
+        """Two calls send `temperature` before either 400 returns; both must recover."""
+        import asyncio
+
+        from graphrag_core.llm.anthropic import AnthropicLLMClient
+
+        block = MagicMock()
+        block.text = "ok"
+        response = MagicMock()
+        response.content = [block]
+
+        async def create(**kwargs):
+            await asyncio.sleep(0)
+            if "temperature" in kwargs:
+                raise _temperature_rejected()
+            return response
+
+        with patch("graphrag_core.llm.anthropic.AsyncAnthropic") as MockClient:
+            MockClient.return_value.messages.create = AsyncMock(side_effect=create)
+            client = AnthropicLLMClient(model="claude-sonnet-5-5", api_key="k")
+            results = await asyncio.gather(
+                client.complete(messages=[{"role": "user", "content": "a"}]),
+                client.complete(messages=[{"role": "user", "content": "b"}]),
+            )
+
+        assert results == ["ok", "ok"]
