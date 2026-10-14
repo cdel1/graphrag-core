@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [0.18.0] — 2026-10-14
 
 Both reference LLM clients can now run models that refuse `temperature` or a forced `tool_choice`, and the factory can pick the model.
 
